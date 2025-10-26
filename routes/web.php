@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\MedicalRecordController;
 use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\AnnouncementController; 
 use Illuminate\Support\Facades\Route;
 
 Auth::routes();
@@ -11,4 +12,5 @@ Route::post('/doctor/schedule', [DoctorController::class, 'storeSchedule'])->nam
 Route::middleware(['auth'])->group(function () {
     Route::resource('medical_records', MedicalRecordController::class);
     Route::get('/schedule', [DoctorController::class, 'index'])->name('schedule');
+    Route::resource('announcements', AnnouncementController::class); 
 });
