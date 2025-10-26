@@ -52,8 +52,8 @@
                             <div class="col-md-6">
                                 <select id="gender" class="form-select @error('gender') is-invalid @enderror" name="gender" required>
                                     <option value="" disabled selected>Pilih Jenis Kelamin</option>
-                                    <option value="Laki-laki" @if(old('gender') == 'Laki-laki') selected @endif>Laki-laki</option>
-                                    <option value="Perempuan" @if(old('gender') == 'Perempuan') selected @endif>Perempuan</option>
+                                    <option value="L" @if(old('gender') == 'L') selected @endif>Laki-laki</option>
+                                    <option value="P" @if(old('gender') == 'P') selected @endif>Perempuan</option>
                                 </select>
                                 @error('gender')
                                     <span class="invalid-feedback" role="alert">

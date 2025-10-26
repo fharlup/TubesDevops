@@ -11,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('nik')->unique()->after('email');
-        $table->enum('gender', ['Laki-laki', 'Perempuan'])->after('nik');
-        $table->date('tanggal_lahir')->after('gender');
-        });
+        // Schema::table('users', function (Blueprint $table) {
+        //     $table->string('nik')->unique()->after('email');
+        // $table->enum('gender', ['Laki-laki', 'Perempuan'])->after('nik');
+        // $table->date('tanggal_lahir')->after('gender');
+        // });
     }
 
     /**
@@ -23,8 +23,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            //
-        });
+        // Schema::table('users', function (Blueprint $table) {
+        //     //
+        // });
     }
 };
