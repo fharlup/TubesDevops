@@ -38,7 +38,9 @@
                              <li class="nav-item">
                                 <a class="nav-link" href="{{ route('schedule') }}">Schedule</a>
                             </li>
-
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ route('medical_records.index') }}">Medical Records</a>
+                            </li>
                         @endauth
                     </ul>
 

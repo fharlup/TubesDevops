@@ -23,4 +23,9 @@ class Doctor extends Model
         // Nama model relasinya adalah DoctorSchedule
         return $this->hasMany(Doctor_schedule::class);
     }
+
+    public function medicalRecords()
+    {
+        return $this->hasMany(MedicalRecord::class);
+    }
 }
