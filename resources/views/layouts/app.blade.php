@@ -35,11 +35,14 @@
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ route('home') }}">Home</a>
                             </li>
-                             <li class="nav-item">
+                            <li class="nav-item">
                                 <a class="nav-link" href="{{ route('schedule') }}">Schedule</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ route('medical_records.index') }}">Medical Records</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ route('announcements.index') }}">Announcements</a>
                             </li>
                         @endauth
                     </ul>

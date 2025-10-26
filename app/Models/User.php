@@ -20,6 +20,7 @@ class User extends Authenticatable
         'nik',
         'gender',
         'tanggal_lahir',
+        'role',
     ];
 
     /**
