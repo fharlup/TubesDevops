@@ -12,20 +12,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. Setup PHP
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
           extensions: mbstring, bcmath, sqlite, intl
 
+      # 3. Install composer dependencies
       - name: Install dependencies
         run: composer install --no-progress --prefer-dist --optimize-autoloader
 
+      # 4. Setup .env dengan SQLite
+      - name: Setup .env
+        run: |
+          cp .env.example .env || echo "" > .env
+          echo "APP_NAME=Laravel" > .env
+          echo "APP_ENV=testing" >> .env
+          echo "APP_KEY=" >> .env
+          echo "APP_DEBUG=true" >> .env
+          echo "APP_URL=http://localhost" >> .env
+          echo "DB_CONNECTION=sqlite" >> .env
+          echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
+
+      # 5. Buat file SQLite
+      - name: Create SQLite database
+        run: mkdir -p database && touch database/database.sqlite
+
+      # 6. Generate APP_KEY
       - name: Generate application key
         run: php artisan key:generate
 
+      # 7. Jalankan migrasi
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      # 8. Jalankan test
       - name: Run tests
         run: php artisan test
