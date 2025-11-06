@@ -27,6 +27,8 @@ class DatabaseSeeder extends Seeder
             DoctorSeeder::class,
             DoctorScheduleSeeder::class,
             MedicalRecordSeeder::class,
+            AnnouncementSeeder::class,
+            TagihanSeeder::class,
         ]);
     }
 }

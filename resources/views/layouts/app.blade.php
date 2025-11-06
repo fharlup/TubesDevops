@@ -44,6 +44,9 @@
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ route('announcements.index') }}">Announcements</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ route('tagihan.index') }}">Invoice</a>
+                            </li>
                         @endauth
                     </ul>
 
