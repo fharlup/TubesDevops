@@ -19,23 +19,23 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
-        // Menambahkan aturan validasi untuk field baru
+        // 1. Validasi (DIUBAH)
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'nik' => ['required', 'string', 'digits:16', 'unique:users'],
-            'gender' => ['required', 'string', 'in:Laki-laki,Perempuan'],
+            'gender' => ['nullable', 'in:L,P'], // <-- DIUBAH ke L dan P
             'tanggal_lahir' => ['required', 'date'],
             'password' => $this->passwordRules(),
         ])->validate();
 
-        // Menambahkan field baru saat membuat user
+        // 2. Pembuatan User (Bagian ini sudah benar)
         return User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
             'nik' => $input['nik'],
-            'gender' => $input['gender'],
+            'gender' => $input['gender'] ?? null,
             'tanggal_lahir' => $input['tanggal_lahir'],
         ]);
     }
