@@ -41,4 +41,4 @@ http://127.0.0.1:8000
 
 untuk test nya pake table beda yak
 
-//test
+//test1
