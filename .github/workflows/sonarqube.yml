@@ -27,5 +27,5 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=fajarmufid_bisa-denger
-            -Dsonar.organization=fajarmufid
+            -Dsonar.projectKey=https://sonarcloud.io/project/overview?id=fharlup_TubesDevops
+            -Dsonar.organization=fharlup
