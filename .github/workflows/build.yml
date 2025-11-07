@@ -1,7 +1,5 @@
-
 name: Build Laravel Production Artifact
 
-# Kapan workflow ini berjalan:
 on:
   push:
     branches:
@@ -12,46 +10,38 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
- 
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, pdo, pdo_mysql, dom, curl, gd
+          coverage: none
 
-  
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.2'
-        extensions: mbstring, xml, pdo, pdo_mysql, dom, curl, gd
-        coverage: none
+      - name: Install Composer dependencies
+        run: composer install --optimize-autoloader --no-dev --no-interaction --no-progress
 
-  
-    - name: Install Composer dependencies
-      run: composer install --optimize-autoloader --no-dev --no-interaction --no-progress
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' 
 
+      - name: Install NPM dependencies
+        run: npm install
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20' # Sesuaikan dengan versi Node.js kamu
+      - name: Build frontend assets
+        run: npm run build
+        env:
+          NODE_ENV: production
 
-       - name: Install NPM dependencies
-      run: npm install
-
-    
-    - name: Build frontend assets
-      run: npm run build
-      env:
-        # Menetapkan lingkungan ke produksi
-        NODE_ENV: production
-
-
-    - name: Upload production artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: production-build # Nama file .zip yang akan di-download
-        path: |
-          .
-          !node_modules/
-          !.git/
-        retention-days: 5
+      - name: Upload production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: |
+            .
+            !node_modules/
+            !.git/
+          retention-days: 5
