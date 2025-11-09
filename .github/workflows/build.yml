@@ -17,13 +17,14 @@ jobs:
         with:
           fetch-depth: 0  # Diperlukan untuk analisis SonarCloud
 
-      # 2. Setup PHP
+      # 2. Setup PHP (MODIFIED: Switched to PCOV)
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, bcmath, sqlite, intl, xdebug, dom, curl, gd, xml, pdo, pdo_mysql
-          coverage: xdebug
+          extensions: mbstring, bcmath, sqlite, intl, dom, curl, gd, xml, pdo, pdo_mysql
+          coverage: pcov # Menggunakan PCOV, bukan Xdebug
+          ini_values: pcov.enabled=1
 
       # 3. Install Composer dependencies
       - name: Install composer dependencies
@@ -75,7 +76,7 @@ jobs:
       - name: Run tests with coverage
         run: php artisan test --coverage --coverage-clover=build/logs/clover.xml
 
-      # ✅ 13. Gunakan cache versi terbaru (v4, bukan 4.1.0)
+      # 13. Gunakan cache
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
         with:
@@ -83,7 +84,7 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      # ✅ 14. Jalankan SonarCloud scan
+      # 14. Jalankan SonarCloud scan
       - name: SonarCloud Scan
         uses: sonarsource/sonarqube-scan-action@v5.0.0
         env:
