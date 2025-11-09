@@ -1,42 +1,163 @@
-name: Build Laravel Production Artifact
+# Nama alur kerja (workflow) yang komprehensif
+name: Laravel CI, SonarCloud & Build
 
+# Memicu alur kerja pada zdorongan ke 'main', pull request ke 'main', atau secara manual
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main  
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build:
+  # --- JOB 1: MENJALANKAN TES ---
+  # Job ini menjalankan semua tes, mirip dengan file 'Laravel CI' Anda.
+  test:
     runs-on: ubuntu-latest
+    name: Run Tests & Generate Coverage
 
     steps:
-      - name: Checkout repository
+      # 1. Checkout kode
+      - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Diperlukan untuk SonarCloud agar bisa menganalisis riwayat
 
-
+      # 2. Setup PHP
       - name: Setup PHP
-        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
+        uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, xml, pdo, pdo_mysql, dom, curl, gd
-          coverage: none
+          # Gabungan ekstensi yang diperlukan untuk tes DAN build
+          extensions: mbstring, bcmath, sqlite, intl, pdo, pdo_mysql, dom, curl, gd, xml
+          # Aktifkan Xdebug untuk menghasilkan laporan cakupan tes
+          coverage: xdebug
 
-      - name: Install Composer dependencies
-        run: composer install --optimize-autoloader --no-dev --no-interaction --no-progress
+      # 3. Install dependensi Composer (termasuk dev-dependencies)
+      - name: Install composer dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
 
+      # 4. Setup .env untuk testing dengan SQLite
+      - name: Setup .env for testing
+        run: |
+          cp .env.example .env || echo "" > .env
+          echo "APP_NAME=Laravel" > .env
+          echo "APP_ENV=testing" >> .env
+          echo "APP_KEY=" >> .env
+          echo "APP_DEBUG=true" >> .env
+          echo "APP_URL=http://localhost" >> .env
+          echo "DB_CONNECTION=sqlite" >> .env
+          echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
+
+      # 5. Buat file database SQLite
+      - name: Create SQLite database
+        run: mkdir -p database && touch database/database.sqlite
+
+      # 6. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # 7. Install dependensi frontend
+      - name: Install frontend dependencies
+        run: npm install
+
+      # 8. Build aset frontend (diperlukan jika tes membutuhkannya)
+      - name: Build frontend assets
+        run: npm run build
+
+      # 9. Generate APP_KEY
+      - name: Generate application key
+        run: php artisan key:generate
+
+      # 10. Jalankan migrasi
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      # 11. Jalankan tes dan buat laporan cakupan (coverage)
+      - name: Run tests with coverage
+        run: php artisan test --coverage-clover=coverage.xml
+
+      # 12. Upload laporan cakupan sebagai artefak
+      # Ini agar job 'sonarcloud' bisa menggunakannya
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 1
+
+  # --- JOB 2: PEMINDAIAN SONARCLOUD ---
+  # Job ini berjalan setelah 'test' selesai.
+  sonarcloud:
+    needs: test # Bergantung pada job 'test'
+    runs-on: ubuntu-latest
+    name: SonarCloud Scan
+
+    steps:
+      # 1. Checkout kode lagi
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Unduh laporan cakupan yang dibuat oleh job 'test'
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+
+      # 3. Jalankan pemindaian SonarCloud
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Token bawaan GitHub
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}    # Anda harus menambahkannya di Settings > Secrets
+
+  # --- JOB 3: MEMBUAT ARTEFAK PRODUKSI ---
+  # Job ini berjalan setelah 'test' dan HANYA pada 'push' ke 'main'.
+  build:
+    needs: test # Bergantung pada job 'test'
+    # Kondisi: Hanya berjalan jika event adalah 'push' DAN referensinya adalah 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: Build Production Artifact
+
+    steps:
+      # 1. Checkout kode
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup PHP (hanya ekstensi produksi)
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, pdo, pdo_mysql, dom, curl, gd
+          coverage: none # Tidak perlu coverage untuk build produksi
+
+      # 3. Install dependensi Composer (hanya produksi, --no-dev)
+      - name: Install Composer dependencies
+        run: composer install --optimize-autoloader --no-dev --no-interaction --no-progress
+
+      # 4. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 5. Install dependensi NPM
       - name: Install NPM dependencies
         run: npm install
 
+      # 6. Build aset frontend untuk produksi
       - name: Build frontend assets
         run: npm run build
         env:
           NODE_ENV: production
 
+      # 7. Upload artefak produksi
       - name: Upload production artifact
         uses: actions/upload-artifact@v4
         with:
