@@ -91,5 +91,5 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.organization=fharlup
             -Dsonar.php.coverage.reportPaths=build/logs/clover.xml
