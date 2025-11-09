@@ -1,48 +1,48 @@
-name: Build Laravel Production Artifact
+# name: Build Laravel Production Artifact
 
-on:
-  push:
-    branches:
-      - main  
+# on:
+#   push:
+#     branches:
+#       - main  
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
-        with:
-          php-version: '8.2'
-          extensions: mbstring, xml, pdo, pdo_mysql, dom, curl, gd
-          coverage: none
+#       - name: Setup PHP
+#         uses: shivammathur/setup-php@bf6b4fbd49ca58e4608c9c89fba0b8d90bd2a39f
+#         with:
+#           php-version: '8.2'
+#           extensions: mbstring, xml, pdo, pdo_mysql, dom, curl, gd
+#           coverage: none
 
-      - name: Install Composer dependencies
-        run: composer install --optimize-autoloader --no-dev --no-interaction --no-progress
+#       - name: Install Composer dependencies
+#         run: composer install --optimize-autoloader --no-dev --no-interaction --no-progress
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
 
-      - name: Install NPM dependencies
-        run: npm install
+#       - name: Install NPM dependencies
+#         run: npm install
 
-      - name: Build frontend assets
-        run: npm run build
-        env:
-          NODE_ENV: production
+#       - name: Build frontend assets
+#         run: npm run build
+#         env:
+#           NODE_ENV: production
 
-      - name: Upload production artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-build
-          path: |
-            .
-            !node_modules/
-            !.git/
-          retention-days: 5
+#       - name: Upload production artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: production-build
+#           path: |
+#             .
+#             !node_modules/
+#             !.git/
+#           retention-days: 5
