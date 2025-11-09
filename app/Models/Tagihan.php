@@ -26,4 +26,9 @@ class Tagihan extends Model
         'tanggal_bayar' => 'date',
         'total_tagihan' => 'decimal:2',
     ];
+
+    // default attributes
+    protected $attributes = [
+        'status' => 'belum_bayar',
+    ];
 }
