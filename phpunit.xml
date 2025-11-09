@@ -21,12 +21,7 @@
         </include>
     </source>
 
-    <coverage>
-        <thresholds>
-            <lines percent="0" />
- 
-        </thresholds>
-    </coverage>
+    <coverage/>
 
     <php>
         <env name="APP_ENV" value="testing"/>
