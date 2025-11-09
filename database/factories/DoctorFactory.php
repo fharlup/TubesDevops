@@ -9,9 +9,9 @@ class DoctorFactory extends Factory
     public function definition(): array
     {
         return [
-            'nama' => fake()->name(),
-            'spesialisasi' => fake()->randomElement(['Umum', 'Gigi', 'Anak', 'Saraf', 'THT']),
-            'foto_url' => fake()->imageUrl(200, 200, 'people'),
+            'nama' => $this->faker->firstName,
+            'spesialisasi' => $this->faker->randomElement(['Kulit', 'Gigi', 'Anak', 'Jantung']),
+            'foto_url' => null,
         ];
     }
 }
