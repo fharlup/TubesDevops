@@ -4,6 +4,7 @@ use App\Http\Controllers\MedicalRecordController;
 use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\TagihanController;
+use App\Http\Controllers\ObatController;
 use Illuminate\Support\Facades\Route;
 
 Auth::routes();
@@ -14,10 +15,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/schedule', [DoctorController::class, 'index'])->name('schedule');
     Route::resource('announcements', AnnouncementController::class);
     Route::resource('tagihan', TagihanController::class);
+    Route::resource('obat', ObatController::class);
 });
 
-use App\Http\Controllers\ObatController;
 
-Route::resource('obat', ObatController::class);
+
 
 
