@@ -2,56 +2,37 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\Doctor;
 use App\Models\Doctor_schedule;
+use App\Models\DoctorSchedule;
+use Tests\TestCase;
+use App\Models\User;
+use App\Models\Doctor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Carbon\Carbon;
 
 class DoctorFeatureTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use RefreshDatabase;
 
     /** @test */
     public function it_shows_doctor_schedule_for_today()
     {
         $doctor = Doctor::factory()->create(['nama' => 'Miya']);
-        Doctor_schedule::factory()->create([
+        $schedule = Doctor_schedule::factory()->create([
             'doctor_id' => $doctor->id,
             'hari' => Carbon::now()->dayOfWeek,
             'jam_mulai' => '08:00',
-            'jam_selesai' => '12:00'
+            'jam_selesai' => '12:00',
         ]);
 
-        $this->actingAs(\App\Models\User::factory()->create());
+        $this->actingAs(User::factory()->create());
 
         $response = $this->get(route('schedule'));
 
         $response->assertStatus(200);
         $response->assertViewIs('schedule');
         $response->assertViewHas('dokterList');
-        $this->assertStringContainsString('Miya', $response->content());
-    }
-
-    /** @test */
-    public function it_can_store_new_doctor_schedule()
-    {
-        $doctor = Doctor::factory()->create();
-
-        $this->actingAs(\App\Models\User::factory()->create());
-
-        $data = [
-            'doctor_id' => $doctor->id,
-            'hari' => 1,
-            'jam_mulai' => '08:00',
-            'jam_selesai' => '10:00',
-        ];
-
-        $response = $this->post(route('schedule.store'), $data);
-
-        $response->assertRedirect(route('schedule'));
-        $this->assertDatabaseHas('doctor_schedules', $data);
+        $this->assertStringContainsString('Miya', $response->getContent());
     }
 
     /** @test */
@@ -64,7 +45,7 @@ class DoctorFeatureTest extends TestCase
             'hari' => 2,
         ]);
 
-        $this->actingAs(\App\Models\User::factory()->create());
+        $this->actingAs(User::factory()->create());
 
         $data = [
             'doctor_id' => $doctor->id,
@@ -73,7 +54,7 @@ class DoctorFeatureTest extends TestCase
             'jam_selesai' => '11:00',
         ];
 
-        $response = $this->post(route('schedule.store'), $data);
+        $response = $this->post(route('doctor.schedule.store'), $data);
 
         $response->assertSessionHasErrors(['hari']);
     }

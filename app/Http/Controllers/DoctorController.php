@@ -53,7 +53,7 @@ class DoctorController extends Controller
             }
 
             return [
-                'nama' => "Dr. " . $doctor->nama . ", " . $doctor->gelar,
+                'nama' => "Dr. " . $doctor->nama ,
                 'spesialisasi' => $doctor->spesialisasi,
                 'jam_praktek' => $jadwalHariIni ? Carbon::parse($jadwalHariIni->jam_mulai)->format('H:i') . ' - ' . Carbon::parse($jadwalHariIni->jam_selesai)->format('H:i') : 'N/A',
                 'status' => $status,

@@ -8,10 +8,9 @@ class DoctorFactory extends Factory
 {
     public function definition(): array
     {
-         return [
+        return [
             'nama' => $this->faker->firstName,
-            'gelar' => 'Sp.KK',
-            'spesialisasi' => 'Kulit',
+            'spesialisasi' => $this->faker->randomElement(['Kulit', 'Gigi', 'Anak', 'Jantung']),
             'foto_url' => null,
         ];
     }
