@@ -14,9 +14,9 @@ class ObatFactory extends Factory
         return [
             'nama_obat' => $this->faker->word(),
             'kategori' => 'Umum',
-            'stok' => rand(1, 100),
+            'stok' => $this->faker->numberBetween(1, 100),
             'satuan' => 'Tablet',
-            'harga' => rand(1000, 100000),
+            'harga' => $this->faker->numberBetween(1000, 100000),
             'deskripsi' => $this->faker->sentence(),
         ];
     }
