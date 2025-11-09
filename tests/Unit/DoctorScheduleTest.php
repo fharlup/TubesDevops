@@ -84,7 +84,7 @@ class DoctorScheduleTest extends TestCase
             ->post(route('doctor.schedule.store'), $duplicateData);
 
         $response->assertRedirect(route('schedule'));
-        $response->assertSessionHasErrors(['hari' => 'Dokter ini sudah memiliki jadwal di hari tersebut!']);
+        $response->assertSessionHasErrors(['hari' => 'Dokter ini sudah memiliki jadwal di hari tersebut.']);
         $this->assertDatabaseCount('doctor_schedules', 1);
     }
 
