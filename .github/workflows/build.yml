@@ -72,9 +72,9 @@ jobs:
       - name: Create logs directory
         run: mkdir -p build/logs
 
-      # 12. Jalankan test dengan coverage report
+      # 12. Jalankan test 
       - name: Run tests with coverage
-        run: php artisan test --coverage --coverage-clover=build/logs/clover.xml
+        run: php artisan test
 
       # 13. Gunakan cache
       - name: Cache SonarCloud packages
