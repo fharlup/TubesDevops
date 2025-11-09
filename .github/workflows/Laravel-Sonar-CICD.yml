@@ -82,7 +82,7 @@ jobs:
 
       # 13️⃣ Run SonarCloud analysis
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-scan-action@v2
+        uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
