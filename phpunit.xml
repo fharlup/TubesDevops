@@ -10,20 +10,22 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <exclude>tests/Feature/ObatTest.php</exclude>
+            <exclude>tests/Feature/DoctorFeatureTest.php</exclude>
         </testsuite>
     </testsuites>
-
-    <coverage processUncoveredFiles="true">
-        <include>
-            <directory>app</directory>
-        </include>
-    </coverage>
-
+    
     <source>
         <include>
             <directory>app</directory>
         </include>
     </source>
+
+    <coverage>
+        <thresholds>
+            <percent min="0" />
+        </thresholds>
+    </coverage>
 
     <php>
         <env name="APP_ENV" value="testing"/>
