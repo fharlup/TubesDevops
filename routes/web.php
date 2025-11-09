@@ -6,7 +6,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\TagihanController;
 use Illuminate\Support\Facades\Route;
 
-
+Auth::routes();
 Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 Route::post('/doctor/schedule', [DoctorController::class, 'storeSchedule'])->name('doctor.schedule.store');
 Route::middleware(['auth'])->group(function () {
