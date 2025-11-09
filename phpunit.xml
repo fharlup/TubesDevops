@@ -2,8 +2,8 @@
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
-         colors="true"
->
+         colors="true">
+
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
@@ -14,17 +14,14 @@
             <exclude>tests/Feature/DoctorFeatureTest.php</exclude>
         </testsuite>
     </testsuites>
-    
-    <source>
+
+    <coverage>
         <include>
             <directory>app</directory>
         </include>
-    </source>
-
-    <coverage>
-        <thresholds>
-            <percent min="0" />
-        </thresholds>
+        <report>
+            <clover outputFile="build/logs/clover.xml"/>
+        </report>
     </coverage>
 
     <php>
