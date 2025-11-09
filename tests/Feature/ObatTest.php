@@ -67,4 +67,67 @@ class ObatTest extends TestCase
         $response->assertRedirect('/obat');
         $this->assertDatabaseMissing('obats', ['id' => $obat->id]);
     }
+
+    /** @test */
+public function it_fails_validation_when_required_fields_are_missing()
+{
+    $response = $this->post('/obat', [
+        'nama_obat' => '', // required
+        'stok' => '',      // required
+        'satuan' => '',    // required
+        'harga' => '',     // required
+    ]);
+
+    $response->assertSessionHasErrors(['nama_obat', 'stok', 'satuan', 'harga']);
+}
+
+/** @test */
+public function stok_must_be_non_negative_integer()
+{
+    $response = $this->post('/obat', [
+        'nama_obat' => 'Test',
+        'kategori' => 'Kategori',
+        'stok' => -5, // invalid
+        'satuan' => 'Tablet',
+        'harga' => 1000,
+        'deskripsi' => '',
+    ]);
+
+    $response->assertSessionHasErrors(['stok']);
+}
+
+/** @test */
+public function harga_must_be_numeric()
+{
+    $response = $this->post('/obat', [
+        'nama_obat' => 'Test',
+        'kategori' => 'Kategori',
+        'stok' => 10,
+        'satuan' => 'Tablet',
+        'harga' => 'not numeric',
+        'deskripsi' => '',
+    ]);
+
+    $response->assertSessionHasErrors(['harga']);
+}
+
+/** @test */
+public function it_can_load_create_page()
+{
+    $response = $this->get('/obat/create');
+    $response->assertStatus(200);
+    $response->assertSee('Tambah Obat');
+}
+
+/** @test */
+public function it_can_load_edit_page()
+{
+    $obat = Obat::factory()->create();
+
+    $response = $this->get("/obat/{$obat->id}/edit");
+
+    $response->assertStatus(200);
+    $response->assertSee($obat->nama_obat);
+}
+
 }

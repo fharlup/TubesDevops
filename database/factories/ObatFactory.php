@@ -3,9 +3,12 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Obat;
 
 class ObatFactory extends Factory
 {
+    protected $model = Obat::class;  
+
     public function definition()
     {
         return [

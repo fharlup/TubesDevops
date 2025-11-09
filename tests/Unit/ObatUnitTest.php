@@ -4,25 +4,73 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Models\Obat;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 
 class ObatUnitTest extends TestCase
 {
-    public function test_obat_model_can_be_created_in_memory()
+    use RefreshDatabase;
+
+    #[Test]
+    public function it_can_create_an_obat()
     {
-        $obat = new Obat([
+        $obat = Obat::factory()->create([
             'nama_obat' => 'Paracetamol',
-            'kategori' => 'Analgesik',
-            'stok' => 100,
-            'satuan' => 'tablet',
-            'harga' => 5000,
-            'deskripsi' => 'Pain relief medicine',
+            'kategori' => 'Umum',
+            'stok'      => 20,
+            'satuan'    => 'Tablet',
+            'harga'     => 5000,
+            'deskripsi' => 'Obat demam',
         ]);
 
-        $this->assertEquals('Paracetamol', $obat->nama_obat);
-        $this->assertEquals('Analgesik', $obat->kategori);
-        $this->assertEquals(100, $obat->stok);
-        $this->assertEquals('tablet', $obat->satuan);
-        $this->assertEquals(5000, $obat->harga);
-        $this->assertEquals('Pain relief medicine', $obat->deskripsi);
+        $this->assertDatabaseHas('obats', [
+            'id' => $obat->id,
+            'nama_obat' => 'Paracetamol',
+        ]);
+    }
+
+    #[Test]
+    public function it_can_be_updated()
+    {
+        $obat = Obat::factory()->create([
+            'nama_obat' => 'Aspirin'
+        ]);
+
+        $obat->update(['nama_obat' => 'Aspirin Plus']);
+
+        $this->assertDatabaseHas('obats', [
+            'id' => $obat->id,
+            'nama_obat' => 'Aspirin Plus',
+        ]);
+    }
+
+    #[Test]
+    public function it_can_be_deleted()
+    {
+        $obat = Obat::factory()->create();
+        $id = $obat->id;
+
+        $obat->delete();
+
+        $this->assertDatabaseMissing('obats', [
+            'id' => $id,
+        ]);
+    }
+
+    #[Test]
+    public function it_has_correct_fillable_properties()
+    {
+        $obat = new Obat;
+
+        $expected = [
+            'nama_obat',
+            'kategori',
+            'stok',
+            'satuan',
+            'harga',
+            'deskripsi',
+        ];
+
+        $this->assertEquals($expected, $obat->getFillable());
     }
 }
