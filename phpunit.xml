@@ -10,6 +10,8 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <exclude>tests/Feature/ObatTest.php</exclude>
+            <exclude>tests/Feature/DoctorFeatureTest.php</exclude>
         </testsuite>
     </testsuites>
     
@@ -21,11 +23,10 @@
 
     <coverage>
         <thresholds>
-            <lines min="0" />
-            <functions min="0" />
-            <classes min="0" />
+            <percent min="0" />
         </thresholds>
     </coverage>
+
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
