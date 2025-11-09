@@ -1,4 +1,4 @@
-name: SonarCloud analysis
+name: Laravel CI & SonarCloud Analysis
 
 on:
   push:
@@ -7,40 +7,89 @@ on:
     branches: [ "main" ]
 
 jobs:
-  sonarcloud:
-    name: SonarCloud
+  test-and-analyze:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      # 1. Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: 17
+          fetch-depth: 0
 
-      # ✅ Gunakan cache versi terbaru
-      - name: Setup cache
+      # 2. Setup PHP
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, bcmath, sqlite, intl, xdebug, dom, curl, gd, xml, pdo, pdo_mysql
+          coverage: xdebug
+
+      # 3. Install composer dependencies
+      - name: Install composer dependencies
+        run: composer install --no-progress --prefer-dist --optimize-autoloader
+
+      # 4. Setup .env (pakai SQLite)
+      - name: Setup .env
+        run: |
+          cp .env.example .env || echo "" > .env
+          echo "APP_NAME=Laravel" > .env
+          echo "APP_ENV=testing" >> .env
+          echo "APP_KEY=" >> .env
+          echo "APP_DEBUG=true" >> .env
+          echo "APP_URL=http://localhost" >> .env
+          echo "DB_CONNECTION=sqlite" >> .env
+          echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
+
+      # 5. Buat database SQLite
+      - name: Create SQLite database
+        run: mkdir -p database && touch database/database.sqlite
+
+      # 6. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 7. Install frontend dependencies
+      - name: Install frontend dependencies
+        run: npm install
+
+      # 8. Build frontend
+      - name: Build frontend assets
+        run: npm run build
+
+      # 9. Generate key
+      - name: Generate application key
+        run: php artisan key:generate
+
+      # 10. Jalankan migrasi
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      # 11. Siapkan folder laporan coverage
+      - name: Create logs directory
+        run: mkdir -p build/logs
+
+      # 12. Jalankan test dengan coverage
+      - name: Run tests with coverage
+        run: php artisan test --coverage --coverage-clover=build/logs/clover.xml
+
+      # ✅ Tambahkan cache versi terbaru agar tidak error
+      - name: Cache SonarCloud packages
         uses: actions/cache@v4.1.0
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      # ✅ Gunakan action terbaru dari SonarSource
+      # ✅ Ganti ke SonarCloud action versi terbaru
       - name: SonarCloud Scan
         uses: sonarsource/sonarqube-scan-action@v5.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=${{ secrets.SONAR_ORG_KEY }}
-            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
-
-      - name: SonarCloud Quality Gate
-        uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
-        with:
-          scanMetadataReportFile: .scannerwork/report-task.txt
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.php.coverage.reportPaths=build/logs/clover.xml
