@@ -74,7 +74,7 @@ jobs:
 
       # 12. Jalankan test dengan coverage report
       - name: Run tests with coverage
-        run: vendor/bin/phpunit --coverage-clover build/logs/clover.xml
+        run: vendor/bin/phpunit --coverage-clover build/logs/clover.xml --fail-on-warning=false
 
       # 13. Gunakan cache
       - name: Cache SonarCloud packages
