@@ -15,3 +15,9 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('announcements', AnnouncementController::class);
     Route::resource('tagihan', TagihanController::class);
 });
+
+use App\Http\Controllers\ObatController;
+
+Route::resource('obat', ObatController::class);
+
+
