@@ -75,9 +75,9 @@ jobs:
       - name: Run tests with coverage
         run: php artisan test --coverage --coverage-clover=build/logs/clover.xml
 
-      # 13. JALANKAN SONARCLOUD SCAN
+      # 13. Jalankan SonarCloud Scan (pakai action resmi)
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-scan-action@v2
+        uses: sonarsource/sonarqube-scan-action@v4.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
