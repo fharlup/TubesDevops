@@ -10,7 +10,7 @@ class ObatTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_can_list_obat()
     {
         Obat::factory()->create([
@@ -23,7 +23,7 @@ class ObatTest extends TestCase
         $response->assertSee('Paracetamol');
     }
 
-    /** @test */
+    #[Test]
     public function it_can_create_obat()
     {
         $response = $this->post('/obat', [
@@ -39,7 +39,7 @@ class ObatTest extends TestCase
         $this->assertDatabaseHas('obats', ['nama_obat' => 'Aspirin']);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_update_obat()
     {
         $obat = Obat::factory()->create();
@@ -57,7 +57,7 @@ class ObatTest extends TestCase
         $this->assertDatabaseHas('obats', ['nama_obat' => 'Updated Name']);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_delete_obat()
     {
         $obat = Obat::factory()->create();
@@ -68,66 +68,65 @@ class ObatTest extends TestCase
         $this->assertDatabaseMissing('obats', ['id' => $obat->id]);
     }
 
-    /** @test */
-public function it_fails_validation_when_required_fields_are_missing()
-{
-    $response = $this->post('/obat', [
-        'nama_obat' => '', // required
-        'stok' => '',      // required
-        'satuan' => '',    // required
-        'harga' => '',     // required
-    ]);
+    #[Test]
+    public function it_fails_validation_when_required_fields_are_missing()
+    {
+        $response = $this->post('/obat', [
+            'nama_obat' => '', // required
+            'stok' => '',      // required
+            'satuan' => '',    // required
+            'harga' => '',     // required
+        ]);
 
-    $response->assertSessionHasErrors(['nama_obat', 'stok', 'satuan', 'harga']);
-}
+        $response->assertSessionHasErrors(['nama_obat', 'stok', 'satuan', 'harga']);
+    }
 
-/** @test */
-public function stok_must_be_non_negative_integer()
-{
-    $response = $this->post('/obat', [
-        'nama_obat' => 'Test',
-        'kategori' => 'Kategori',
-        'stok' => -5, // invalid
-        'satuan' => 'Tablet',
-        'harga' => 1000,
-        'deskripsi' => '',
-    ]);
+    #[Test]
+    public function stok_must_be_non_negative_integer()
+    {
+        $response = $this->post('/obat', [
+            'nama_obat' => 'Test',
+            'kategori' => 'Kategori',
+            'stok' => -5, // invalid
+            'satuan' => 'Tablet',
+            'harga' => 1000,
+            'deskripsi' => '',
+        ]);
 
-    $response->assertSessionHasErrors(['stok']);
-}
+        $response->assertSessionHasErrors(['stok']);
+    }
 
-/** @test */
-public function harga_must_be_numeric()
-{
-    $response = $this->post('/obat', [
-        'nama_obat' => 'Test',
-        'kategori' => 'Kategori',
-        'stok' => 10,
-        'satuan' => 'Tablet',
-        'harga' => 'not numeric',
-        'deskripsi' => '',
-    ]);
+    #[Test]
+    public function harga_must_be_numeric()
+    {
+        $response = $this->post('/obat', [
+            'nama_obat' => 'Test',
+            'kategori' => 'Kategori',
+            'stok' => 10,
+            'satuan' => 'Tablet',
+            'harga' => 'not numeric',
+            'deskripsi' => '',
+        ]);
 
-    $response->assertSessionHasErrors(['harga']);
-}
+        $response->assertSessionHasErrors(['harga']);
+    }
 
-/** @test */
-public function it_can_load_create_page()
-{
-    $response = $this->get('/obat/create');
-    $response->assertStatus(200);
-    $response->assertSee('Tambah Obat');
-}
+    #[Test]
+    public function it_can_load_create_page()
+    {
+        $response = $this->get('/obat/create');
+        $response->assertStatus(200);
+        $response->assertSee('Tambah Obat');
+    }
 
-/** @test */
-public function it_can_load_edit_page()
-{
-    $obat = Obat::factory()->create();
+    #[Test]
+    public function it_can_load_edit_page()
+    {
+        $obat = Obat::factory()->create();
 
-    $response = $this->get("/obat/{$obat->id}/edit");
+        $response = $this->get("/obat/{$obat->id}/edit");
 
-    $response->assertStatus(200);
-    $response->assertSee($obat->nama_obat);
-}
-
+        $response->assertStatus(200);
+        $response->assertSee($obat->nama_obat);
+    }
 }

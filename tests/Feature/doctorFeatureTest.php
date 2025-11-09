@@ -14,7 +14,7 @@ class DoctorFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_shows_doctor_schedule_for_today()
     {
         $doctor = Doctor::factory()->create(['nama' => 'Miya']);
@@ -35,7 +35,7 @@ class DoctorFeatureTest extends TestCase
         $this->assertStringContainsString('Miya', $response->getContent());
     }
 
-    /** @test */
+    #[Test]
     public function it_fails_when_schedule_duplicate_in_same_day()
     {
         $doctor = Doctor::factory()->create();
