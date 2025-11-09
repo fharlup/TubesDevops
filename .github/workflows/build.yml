@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Diperlukan untuk analisis SonarCloud
 
       # 2. Setup PHP
       - name: Setup PHP
@@ -25,7 +25,7 @@ jobs:
           extensions: mbstring, bcmath, sqlite, intl, xdebug, dom, curl, gd, xml, pdo, pdo_mysql
           coverage: xdebug
 
-      # 3. Install composer dependencies
+      # 3. Install Composer dependencies
       - name: Install composer dependencies
         run: composer install --no-progress --prefer-dist --optimize-autoloader
 
@@ -41,7 +41,7 @@ jobs:
           echo "DB_CONNECTION=sqlite" >> .env
           echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
 
-      # 5. Buat database SQLite
+      # 5. Buat file database SQLite
       - name: Create SQLite database
         run: mkdir -p database && touch database/database.sqlite
 
@@ -55,15 +55,15 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      # 8. Build frontend
+      # 8. Build frontend assets
       - name: Build frontend assets
         run: npm run build
 
-      # 9. Generate key
+      # 9. Generate APP_KEY
       - name: Generate application key
         run: php artisan key:generate
 
-      # 10. Jalankan migrasi
+      # 10. Jalankan migrasi database
       - name: Run migrations
         run: php artisan migrate --force
 
@@ -71,19 +71,19 @@ jobs:
       - name: Create logs directory
         run: mkdir -p build/logs
 
-      # 12. Jalankan test dengan coverage
+      # 12. Jalankan test dengan coverage report
       - name: Run tests with coverage
         run: php artisan test --coverage --coverage-clover=build/logs/clover.xml
 
-      # ✅ Tambahkan cache versi terbaru agar tidak error
+      # ✅ 13. Gunakan cache versi terbaru (v4, bukan 4.1.0)
       - name: Cache SonarCloud packages
-        uses: actions/cache@v4.1.0
+        uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      # ✅ Ganti ke SonarCloud action versi terbaru
+      # ✅ 14. Jalankan SonarCloud scan
       - name: SonarCloud Scan
         uses: sonarsource/sonarqube-scan-action@v5.0.0
         env:
