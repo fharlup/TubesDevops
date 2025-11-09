@@ -23,7 +23,8 @@
 
     <coverage>
         <thresholds>
-            <percent min="0" />
+            <lines percent="0" />
+ 
         </thresholds>
     </coverage>
 
