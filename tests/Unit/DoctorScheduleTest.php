@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature; // <--- Sebaiknya ini 'Tests\Unit' jika Anda tetap meletakkannya di folder Unit
+namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -8,14 +8,11 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Doctor;
 use App\Models\Doctor_schedule;
-// Tambahkan ini jika Anda ingin menggunakan atribut #[Test]
-// use PHPUnit\Framework\Attributes\Test;
 
 class DoctorScheduleTest extends TestCase
 {
     use RefreshDatabase;
 
-    // Opsi 1: Tambahkan 'test_' di depan nama
     public function test_an_authenticated_user_can_create_a_doctor_schedule(): void
     {
         /** @var \App\Models\User $user */
@@ -37,13 +34,11 @@ class DoctorScheduleTest extends TestCase
         $this->assertDatabaseHas('doctor_schedules', [
             'doctor_id' => $doctor->id,
             'hari' => 1,
-            'jam_mulai' => '09:00', // <-- BENAR
-            'jam_selesai' => '17:00', // <-- BENAR
+            'jam_mulai' => '09:00',
+            'jam_selesai' => '17:00',
         ]);
     }
 
-    // Opsi 2: Gunakan Atribut #[Test] (seperti file tes Anda yang lain)
-    // #[Test]
     public function test_store_schedule_fails_if_end_time_is_before_start_time(): void
     {
         /** @var \App\Models\User $user */
