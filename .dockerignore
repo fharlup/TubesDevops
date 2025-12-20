@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Node & frontend
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Composer
+vendor
+
+# Laravel
+.env
+.env.*
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+bootstrap/cache
+
+# Tests & docs
+tests
+docs
+
+# IDE & OS
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.yml
+Dockerfile
+
+# Misc
+*.log
