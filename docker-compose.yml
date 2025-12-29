@@ -4,6 +4,10 @@
         context: .
         dockerfile: Dockerfile
       container_name: Tubes_Devops
+      volumes:
+      - .:/var/www
+      - /var/www/vendor        
+      - /var/www/node_modules  
       depends_on:
         - db
       networks:
