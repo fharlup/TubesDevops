@@ -1,0 +1,163 @@
+---
+# backup.yml - Comprehensive backup playbook
+- name: Backup Healthcare Application
+  hosts: webservers
+  become: yes
+  vars_files:
+    - ../vars/main.yml
+    - ../vars/vault.yml
+
+  vars:
+    backup_root: "{{ app_root }}/backups"
+    backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+    backup_retention_days: 7
+
+  tasks:
+    - name: "=== BACKUP INITIALIZATION ==="
+      debug:
+        msg: "Starting backup process at {{ ansible_date_time.iso8601 }}"
+
+    - name: Create backup directory
+      file:
+        path: "{{ backup_root }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Create backup subdirectories
+      file:
+        path: "{{ backup_root }}/{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - database
+        - files
+        - configs
+
+    - name: "=== DATABASE BACKUP ==="
+      debug:
+        msg: "Backing up MySQL database..."
+
+    - name: Backup MySQL database
+      shell: |
+        docker-compose exec -T db mysqldump \
+          -u {{ db_user }} \
+          -p{{ db_password }} \
+          --single-transaction \
+          --quick \
+          --lock-tables=false \
+          {{ db_name }} > {{ backup_root }}/database/db_backup_{{ backup_timestamp }}.sql
+      args:
+        chdir: "{{ app_root }}"
+      become_user: "{{ ansible_user }}"
+      register: db_backup
+
+    - name: Compress database backup
+      archive:
+        path: "{{ backup_root }}/database/db_backup_{{ backup_timestamp }}.sql"
+        dest: "{{ backup_root }}/database/db_backup_{{ backup_timestamp }}.sql.gz"
+        format: gz
+        remove: yes
+
+    - name: "=== FILES BACKUP ==="
+      debug:
+        msg: "Backing up application files..."
+
+    - name: Backup uploaded files and storage
+      archive:
+        path: 
+          - "{{ app_root }}/storage"
+          - "{{ app_root }}/public/uploads"
+        dest: "{{ backup_root }}/files/storage_backup_{{ backup_timestamp }}.tar.gz"
+        format: gz
+      ignore_errors: yes
+
+    - name: "=== CONFIGURATION BACKUP ==="
+      debug:
+        msg: "Backing up configuration files..."
+
+    - name: Backup configuration files
+      archive:
+        path:
+          - "{{ app_root }}/.env"
+          - "{{ app_root }}/docker-compose.yml"
+          - "{{ app_root }}/Dockerfile"
+        dest: "{{ backup_root }}/configs/config_backup_{{ backup_timestamp }}.tar.gz"
+        format: gz
+
+    - name: "=== CLEANUP OLD BACKUPS ==="
+      debug:
+        msg: "Removing backups older than {{ backup_retention_days }} days..."
+
+    - name: Find old database backups
+      find:
+        paths: "{{ backup_root }}/database"
+        age: "{{ backup_retention_days }}d"
+        patterns: "*.sql.gz"
+      register: old_db_backups
+
+    - name: Find old file backups
+      find:
+        paths: "{{ backup_root }}/files"
+        age: "{{ backup_retention_days }}d"
+        patterns: "*.tar.gz"
+      register: old_file_backups
+
+    - name: Find old config backups
+      find:
+        paths: "{{ backup_root }}/configs"
+        age: "{{ backup_retention_days }}d"
+        patterns: "*.tar.gz"
+      register: old_config_backups
+
+    - name: Remove old backups
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_db_backups.files + old_file_backups.files + old_config_backups.files }}"
+      when: item.path is defined
+
+    - name: "=== BACKUP VERIFICATION ==="
+      debug:
+        msg: "Verifying backup integrity..."
+
+    - name: Get backup directory size
+      shell: du -sh {{ backup_root }}
+      register: backup_size
+      changed_when: false
+
+    - name: List all backups
+      find:
+        paths: "{{ backup_root }}"
+        recurse: yes
+        patterns: "*.gz"
+      register: all_backups
+
+    - name: "=== BACKUP SUMMARY ==="
+      debug:
+        msg: |
+          ========================================
+          Backup Completed Successfully!
+          ========================================
+          Timestamp: {{ backup_timestamp }}
+          Location: {{ backup_root }}
+          Total Size: {{ backup_size.stdout }}
+          
+          Backup Files:
+          - Database: {{ backup_root }}/database/db_backup_{{ backup_timestamp }}.sql.gz
+          - Files: {{ backup_root }}/files/storage_backup_{{ backup_timestamp }}.tar.gz
+          - Configs: {{ backup_root }}/configs/config_backup_{{ backup_timestamp }}.tar.gz
+          
+          Total Backups: {{ all_backups.matched }}
+          Retention: {{ backup_retention_days }} days
+          ========================================
+
+    - name: Create backup log
+      lineinfile:
+        path: "{{ backup_root }}/backup.log"
+        line: "{{ ansible_date_time.iso8601 }} - Backup completed: {{ backup_timestamp }}"
+        create: yes
+        mode: '0644'

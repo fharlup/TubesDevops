@@ -1,0 +1,274 @@
+---
+# health-check.yml - Comprehensive health monitoring
+- name: Healthcare Application Health Check
+  hosts: webservers
+  become: yes
+  vars_files:
+    - ../vars/main.yml
+
+  tasks:
+    - name: "=== SYSTEM HEALTH CHECK ==="
+      debug:
+        msg: "Checking system health at {{ ansible_date_time.iso8601 }}"
+
+    - name: Check system disk space
+      shell: df -h {{ app_root }}
+      register: disk_space
+      changed_when: false
+
+    - name: Display disk space
+      debug:
+        msg: |
+          Disk Space:
+          {{ disk_space.stdout_lines | join('\n') }}
+
+    - name: Check system memory
+      shell: free -h
+      register: memory_info
+      changed_when: false
+
+    - name: Display memory info
+      debug:
+        msg: |
+          Memory Usage:
+          {{ memory_info.stdout_lines | join('\n') }}
+
+    - name: Check system load
+      shell: uptime
+      register: system_load
+      changed_when: false
+
+    - name: Display system load
+      debug:
+        msg: "{{ system_load.stdout }}"
+
+    - name: "=== DOCKER HEALTH CHECK ==="
+      debug:
+        msg: "Checking Docker services..."
+
+    - name: Check Docker service status
+      systemd:
+        name: docker
+      register: docker_status
+      changed_when: false
+
+    - name: Display Docker status
+      debug:
+        msg: "Docker Service: {{ docker_status.status.ActiveState }}"
+
+    - name: Check Docker version
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Display Docker version
+      debug:
+        msg: "{{ docker_version.stdout }}"
+
+    - name: "=== CONTAINER HEALTH CHECK ==="
+      debug:
+        msg: "Checking application containers..."
+
+    - name: Get running containers
+      command: docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      register: containers
+      become_user: "{{ ansible_user }}"
+      changed_when: false
+
+    - name: Display running containers
+      debug:
+        msg: |
+          Running Containers:
+          {{ containers.stdout_lines | join('\n') }}
+
+    - name: Check Docker Compose status
+      command: docker-compose ps
+      args:
+        chdir: "{{ app_root }}"
+      register: compose_status
+      become_user: "{{ ansible_user }}"
+      changed_when: false
+
+    - name: Display Docker Compose status
+      debug:
+        msg: |
+          Docker Compose Status:
+          {{ compose_status.stdout_lines | join('\n') }}
+
+    - name: Check for stopped containers
+      shell: docker-compose ps | grep Exit || true
+      args:
+        chdir: "{{ app_root }}"
+      register: stopped_containers
+      become_user: "{{ ansible_user }}"
+      changed_when: false
+
+    - name: Alert if containers are stopped
+      debug:
+        msg: "WARNING: Some containers are stopped!\n{{ stopped_containers.stdout }}"
+      when: stopped_containers.stdout != ""
+
+    - name: "=== APPLICATION HEALTH CHECK ==="
+      debug:
+        msg: "Checking application endpoints..."
+
+    - name: Check main application
+      uri:
+        url: "http://{{ ansible_host }}:{{ app_port }}"
+        status_code: 200
+        timeout: 30
+      register: app_response
+      ignore_errors: yes
+
+    - name: Display application status
+      debug:
+        msg: "Application: {{ 'Healthy ✓' if app_response.status == 200 else 'Down ✗' }}"
+
+    - name: Check phpMyAdmin
+      uri:
+        url: "http://{{ ansible_host }}:8081"
+        status_code: 200
+        timeout: 30
+      register: phpmyadmin_response
+      ignore_errors: yes
+
+    - name: Display phpMyAdmin status
+      debug:
+        msg: "phpMyAdmin: {{ 'Healthy ✓' if phpmyadmin_response.status == 200 else 'Down ✗' }}"
+
+    - name: "=== DATABASE HEALTH CHECK ==="
+      debug:
+        msg: "Checking database connectivity..."
+
+    - name: Check MySQL container
+      command: docker-compose exec -T db mysql -u{{ db_user }} -p{{ db_password }} -e "SELECT 1"
+      args:
+        chdir: "{{ app_root }}"
+      register: mysql_check
+      become_user: "{{ ansible_user }}"
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display database status
+      debug:
+        msg: "MySQL Database: {{ 'Connected ✓' if mysql_check.rc == 0 else 'Connection Failed ✗' }}"
+
+    - name: Get database size
+      command: >
+        docker-compose exec -T db mysql -u{{ db_user }} -p{{ db_password }} -e 
+        "SELECT table_schema AS 'Database', 
+        ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)' 
+        FROM information_schema.tables 
+        WHERE table_schema = '{{ db_name }}' 
+        GROUP BY table_schema;"
+      args:
+        chdir: "{{ app_root }}"
+      register: db_size
+      become_user: "{{ ansible_user }}"
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display database size
+      debug:
+        msg: |
+          Database Information:
+          {{ db_size.stdout_lines | join('\n') }}
+      when: db_size.rc == 0
+
+    - name: "=== MONITORING HEALTH CHECK ==="
+      debug:
+        msg: "Checking monitoring stack..."
+      tags: ['monitoring']
+
+    - name: Check Prometheus
+      uri:
+        url: "http://{{ ansible_host }}:{{ prometheus_port }}/-/healthy"
+        status_code: 200
+        timeout: 10
+      register: prometheus_health
+      ignore_errors: yes
+      tags: ['monitoring']
+
+    - name: Display Prometheus status
+      debug:
+        msg: "Prometheus: {{ 'Healthy ✓' if prometheus_health.status == 200 else 'Down ✗' }}"
+      tags: ['monitoring']
+
+    - name: Check Grafana
+      uri:
+        url: "http://{{ ansible_host }}:{{ grafana_port }}/api/health"
+        status_code: 200
+        timeout: 10
+      register: grafana_health
+      ignore_errors: yes
+      tags: ['monitoring']
+
+    - name: Display Grafana status
+      debug:
+        msg: "Grafana: {{ 'Healthy ✓' if grafana_health.status == 200 else 'Down ✗' }}"
+      tags: ['monitoring']
+
+    - name: "=== LOG CHECK ==="
+      debug:
+        msg: "Checking recent logs for errors..."
+
+    - name: Get recent application logs
+      command: docker-compose logs --tail=50 laravel
+      args:
+        chdir: "{{ app_root }}"
+      register: app_logs
+      become_user: "{{ ansible_user }}"
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Check for errors in logs
+      shell: docker-compose logs --tail=100 | grep -i error | tail -10 || echo "No recent errors found"
+      args:
+        chdir: "{{ app_root }}"
+      register: error_logs
+      become_user: "{{ ansible_user }}"
+      changed_when: false
+
+    - name: Display recent errors
+      debug:
+        msg: |
+          Recent Errors (if any):
+          {{ error_logs.stdout_lines | join('\n') }}
+
+    - name: "=== HEALTH CHECK SUMMARY ==="
+      debug:
+        msg: |
+          ========================================
+          Health Check Summary
+          ========================================
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+          System Status:
+          - Docker Service: {{ docker_status.status.ActiveState }}
+          - Application: {{ 'UP' if app_response.status == 200 else 'DOWN' }}
+          - Database: {{ 'UP' if mysql_check.rc == 0 else 'DOWN' }}
+          - phpMyAdmin: {{ 'UP' if phpmyadmin_response.status == 200 else 'DOWN' }}
+          - Prometheus: {{ 'UP' if prometheus_health.status == 200 else 'DOWN/Not Deployed' }}
+          - Grafana: {{ 'UP' if grafana_health.status == 200 else 'DOWN/Not Deployed' }}
+          
+          URLs:
+          - Application: http://{{ ansible_host }}:{{ app_port }}
+          - phpMyAdmin: http://{{ ansible_host }}:8081
+          - Prometheus: http://{{ ansible_host }}:{{ prometheus_port }}
+          - Grafana: http://{{ ansible_host }}:{{ grafana_port }}
+          
+          {{ 'Overall Status: HEALTHY ✓' if (app_response.status == 200 and mysql_check.rc == 0) else 'Overall Status: NEEDS ATTENTION ✗' }}
+          ========================================
+
+    - name: Create health check log
+      lineinfile:
+        path: "{{ app_root }}/health-check.log"
+        line: "{{ ansible_date_time.iso8601 }} - Status: {{ 'HEALTHY' if (app_response.status == 200 and mysql_check.rc == 0) else 'UNHEALTHY' }}"
+        create: yes
+        mode: '0644'
+
+    - name: Fail if critical services are down
+      fail:
+        msg: "Critical services are not responding! Please check the logs."
+      when: app_response.status != 200 or mysql_check.rc != 0
+      ignore_errors: yes

@@ -1,0 +1,227 @@
+---
+# rollback.yml - Application rollback playbook
+- name: Rollback Healthcare Application
+  hosts: webservers
+  become: yes
+  vars_files:
+    - ../vars/main.yml
+    - ../vars/vault.yml
+
+  vars_prompt:
+    - name: rollback_commit
+      prompt: "Enter Git commit hash to rollback to (or leave empty for previous commit)"
+      private: no
+      default: "HEAD~1"
+
+    - name: restore_database
+      prompt: "Do you want to restore database backup? (yes/no)"
+      private: no
+      default: "no"
+
+    - name: backup_before_rollback
+      prompt: "Create backup before rollback? (yes/no)"
+      private: no
+      default: "yes"
+
+  tasks:
+    - name: "=== ROLLBACK INITIALIZATION ==="
+      debug:
+        msg: |
+          ========================================
+          Starting Rollback Process
+          ========================================
+          Target Commit: {{ rollback_commit }}
+          Restore DB: {{ restore_database }}
+          Backup First: {{ backup_before_rollback }}
+          ========================================
+
+    - name: "=== PRE-ROLLBACK BACKUP ==="
+      block:
+        - name: Create pre-rollback backup
+          include_tasks: backup.yml
+          when: backup_before_rollback == 'yes'
+
+        - name: Wait for backup to complete
+          pause:
+            seconds: 5
+          when: backup_before_rollback == 'yes'
+      tags: ['backup']
+
+    - name: "=== APPLICATION ROLLBACK ==="
+      debug:
+        msg: "Rolling back application code..."
+
+    - name: Stop running containers
+      command: docker-compose down
+      args:
+        chdir: "{{ app_root }}"
+      become_user: "{{ ansible_user }}"
+      tags: ['stop']
+
+    - name: Fetch repository information
+      shell: git log --oneline -10
+      args:
+        chdir: "{{ app_root }}"
+      become_user: "{{ ansible_user }}"
+      register: git_log
+      changed_when: false
+
+    - name: Display recent commits
+      debug:
+        msg: |
+          Recent commits:
+          {{ git_log.stdout_lines | join('\n') }}
+
+    - name: Checkout specified commit
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ app_root }}"
+        version: "{{ rollback_commit }}"
+        force: yes
+      become_user: "{{ ansible_user }}"
+      register: git_checkout
+
+    - name: Display rollback information
+      debug:
+        msg: "Rolled back to: {{ git_checkout.after }}"
+
+    - name: "=== DATABASE ROLLBACK ==="
+      block:
+        - name: List available database backups
+          find:
+            paths: "{{ app_root }}/backups/database"
+            patterns: "*.sql.gz"
+          register: available_backups
+          when: restore_database == 'yes'
+
+        - name: Display available backups
+          debug:
+            msg: "Available backups: {{ available_backups.files | map(attribute='path') | list }}"
+          when: restore_database == 'yes' and available_backups.matched > 0
+
+        - name: Get latest database backup
+          set_fact:
+            latest_backup: "{{ available_backups.files | sort(attribute='mtime', reverse=true) | first }}"
+          when: restore_database == 'yes' and available_backups.matched > 0
+
+        - name: Decompress database backup
+          shell: gunzip -c {{ latest_backup.path }} > /tmp/restore_backup.sql
+          when: restore_database == 'yes' and available_backups.matched > 0
+
+        - name: Restore database from backup
+          shell: |
+            docker-compose exec -T db mysql \
+              -u {{ db_user }} \
+              -p{{ db_password }} \
+              {{ db_name }} < /tmp/restore_backup.sql
+          args:
+            chdir: "{{ app_root }}"
+          become_user: "{{ ansible_user }}"
+          when: restore_database == 'yes' and available_backups.matched > 0
+
+        - name: Clean up temporary file
+          file:
+            path: /tmp/restore_backup.sql
+            state: absent
+          when: restore_database == 'yes' and available_backups.matched > 0
+      tags: ['database']
+
+    - name: "=== REBUILD APPLICATION ==="
+      debug:
+        msg: "Rebuilding application with rolled back code..."
+
+    - name: Rebuild Docker images
+      command: docker-compose build --no-cache
+      args:
+        chdir: "{{ app_root }}"
+      become_user: "{{ ansible_user }}"
+      tags: ['build']
+
+    - name: Start containers
+      command: docker-compose up -d
+      args:
+        chdir: "{{ app_root }}"
+      become_user: "{{ ansible_user }}"
+      tags: ['start']
+
+    - name: Wait for application to be ready
+      wait_for:
+        port: "{{ app_port }}"
+        delay: 10
+        timeout: 120
+      tags: ['start']
+
+    - name: "=== POST-ROLLBACK TASKS ==="
+      debug:
+        msg: "Running post-rollback maintenance..."
+
+    - name: Clear application cache
+      command: "{{ item }}"
+      args:
+        chdir: "{{ app_root }}"
+      loop:
+        - docker-compose exec -T laravel php artisan config:clear
+        - docker-compose exec -T laravel php artisan cache:clear
+        - docker-compose exec -T laravel php artisan route:clear
+        - docker-compose exec -T laravel php artisan view:clear
+      become_user: "{{ ansible_user }}"
+      ignore_errors: yes
+      tags: ['cache']
+
+    - name: Run migrations (if needed)
+      command: docker-compose exec -T laravel php artisan migrate --force
+      args:
+        chdir: "{{ app_root }}"
+      become_user: "{{ ansible_user }}"
+      when: run_migrations | default(false)
+      ignore_errors: yes
+      tags: ['database']
+
+    - name: "=== VERIFICATION ==="
+      debug:
+        msg: "Verifying rollback..."
+
+    - name: Check application health
+      uri:
+        url: "http://{{ ansible_host }}:{{ app_port }}"
+        status_code: 200
+        timeout: 30
+      register: health_check
+      retries: 5
+      delay: 10
+      until: health_check.status == 200
+      tags: ['verify']
+
+    - name: Get current Git commit
+      shell: git log -1 --oneline
+      args:
+        chdir: "{{ app_root }}"
+      become_user: "{{ ansible_user }}"
+      register: current_commit
+      changed_when: false
+
+    - name: "=== ROLLBACK SUMMARY ==="
+      debug:
+        msg: |
+          ========================================
+          Rollback Completed Successfully!
+          ========================================
+          Previous State: Backed up (if requested)
+          Current Commit: {{ current_commit.stdout }}
+          Application Status: {{ 'Healthy' if health_check.status == 200 else 'Needs Attention' }}
+          Database Restored: {{ 'Yes' if restore_database == 'yes' else 'No' }}
+          
+          Application: http://{{ ansible_host }}:{{ app_port }}
+          
+          Next Steps:
+          1. Verify application functionality
+          2. Check logs: docker-compose logs
+          3. Monitor for issues
+          ========================================
+
+    - name: Create rollback log entry
+      lineinfile:
+        path: "{{ app_root }}/rollback.log"
+        line: "{{ ansible_date_time.iso8601 }} - Rollback to {{ current_commit.stdout }} - Status: Success"
+        create: yes
+        mode: '0644'

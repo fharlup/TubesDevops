@@ -1,0 +1,369 @@
+---
+# kubernetes.yml - Kubernetes deployment playbook (dibuat arga)
+- name: Deploy Healthcare Application to Kubernetes
+  hosts: k8s_master
+  become: yes
+  vars_files:
+    - ../vars/main.yml
+    - ../vars/vault.yml
+
+  vars:
+    k8s_namespace: healthcare-app
+    k8s_manifests_dir: "{{ app_root }}/k8s"
+
+  tasks:
+    - name: "=== KUBERNETES DEPLOYMENT arga ==="
+      debug:
+        msg: "Starting Kubernetes deployment..."
+
+    - name: Check if kubectl is installed
+      command: kubectl version --client
+      register: kubectl_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Fail if kubectl not found
+      fail:
+        msg: "kubectl is not installed. Please install Kubernetes first."
+      when: kubectl_check.rc != 0
+
+    - name: Create Kubernetes manifests directory
+      file:
+        path: "{{ k8s_manifests_dir }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Create namespace
+      shell: kubectl create namespace {{ k8s_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+      changed_when: false
+
+    - name: "=== CREATE CONFIGMAPS ==="
+      debug:
+        msg: "Creating ConfigMaps for application configuration..."
+
+    - name: Create application ConfigMap
+      copy:
+        content: |
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: {{ app_name }}-config
+            namespace: {{ k8s_namespace }}
+          data:
+            APP_NAME: "{{ app_name }}"
+            APP_ENV: "{{ app_env }}"
+            APP_DEBUG: "{{ app_debug }}"
+            APP_URL: "{{ app_url }}"
+            DB_CONNECTION: mysql
+            DB_HOST: mysql-service
+            DB_PORT: "3306"
+            DB_DATABASE: "{{ db_name }}"
+        dest: "{{ k8s_manifests_dir }}/configmap.yml"
+
+    - name: Apply ConfigMap
+      command: kubectl apply -f {{ k8s_manifests_dir }}/configmap.yml
+      changed_when: true
+
+    - name: "=== CREATE SECRETS ==="
+      debug:
+        msg: "Creating Kubernetes Secrets..."
+
+    - name: Create application Secret
+      shell: |
+        kubectl create secret generic {{ app_name }}-secret \
+          --from-literal=APP_KEY="{{ app_key }}" \
+          --from-literal=DB_USERNAME="{{ db_user }}" \
+          --from-literal=DB_PASSWORD="{{ db_password }}" \
+          --namespace={{ k8s_namespace }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+      changed_when: true
+
+    - name: "=== CREATE MYSQL DEPLOYMENT ==="
+      debug:
+        msg: "Deploying MySQL database..."
+
+    - name: Create MySQL PersistentVolumeClaim
+      copy:
+        content: |
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: mysql-pvc
+            namespace: {{ k8s_namespace }}
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+        dest: "{{ k8s_manifests_dir }}/mysql-pvc.yml"
+
+    - name: Apply MySQL PVC
+      command: kubectl apply -f {{ k8s_manifests_dir }}/mysql-pvc.yml
+      changed_when: true
+
+    - name: Create MySQL Deployment
+      copy:
+        content: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: mysql
+            namespace: {{ k8s_namespace }}
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: mysql
+            template:
+              metadata:
+                labels:
+                  app: mysql
+              spec:
+                containers:
+                - name: mysql
+                  image: mysql:8.0
+                  ports:
+                  - containerPort: 3306
+                    name: mysql
+                  env:
+                  - name: MYSQL_ROOT_PASSWORD
+                    value: "{{ db_password }}"
+                  - name: MYSQL_DATABASE
+                    value: "{{ db_name }}"
+                  - name: MYSQL_USER
+                    value: "{{ db_user }}"
+                  - name: MYSQL_PASSWORD
+                    value: "{{ db_password }}"
+                  volumeMounts:
+                  - name: mysql-storage
+                    mountPath: /var/lib/mysql
+                volumes:
+                - name: mysql-storage
+                  persistentVolumeClaim:
+                    claimName: mysql-pvc
+        dest: "{{ k8s_manifests_dir }}/mysql-deployment.yml"
+
+    - name: Apply MySQL Deployment
+      command: kubectl apply -f {{ k8s_manifests_dir }}/mysql-deployment.yml
+      changed_when: true
+
+    - name: Create MySQL Service
+      copy:
+        content: |
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: mysql-service
+            namespace: {{ k8s_namespace }}
+          spec:
+            selector:
+              app: mysql
+            ports:
+            - port: 3306
+              targetPort: 3306
+            clusterIP: None
+        dest: "{{ k8s_manifests_dir }}/mysql-service.yml"
+
+    - name: Apply MySQL Service
+      command: kubectl apply -f {{ k8s_manifests_dir }}/mysql-service.yml
+      changed_when: true
+
+    - name: "=== CREATE APPLICATION DEPLOYMENT ==="
+      debug:
+        msg: "Deploying Laravel application..."
+
+    - name: Create Laravel Deployment
+      copy:
+        content: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: {{ app_name }}
+            namespace: {{ k8s_namespace }}
+          spec:
+            replicas: 3
+            selector:
+              matchLabels:
+                app: {{ app_name }}
+            template:
+              metadata:
+                labels:
+                  app: {{ app_name }}
+              spec:
+                containers:
+                - name: laravel
+                  image: {{ app_name }}:latest
+                  imagePullPolicy: Always
+                  ports:
+                  - containerPort: 9000
+                    name: php-fpm
+                  envFrom:
+                  - configMapRef:
+                      name: {{ app_name }}-config
+                  - secretRef:
+                      name: {{ app_name }}-secret
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /
+                      port: 80
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /
+                      port: 80
+                    initialDelaySeconds: 20
+                    periodSeconds: 5
+                - name: nginx
+                  image: nginx:alpine
+                  ports:
+                  - containerPort: 80
+                    name: http
+                  volumeMounts:
+                  - name: nginx-config
+                    mountPath: /etc/nginx/conf.d
+                volumes:
+                - name: nginx-config
+                  configMap:
+                    name: nginx-config
+        dest: "{{ k8s_manifests_dir }}/app-deployment.yml"
+
+    - name: Apply Application Deployment
+      command: kubectl apply -f {{ k8s_manifests_dir }}/app-deployment.yml
+      changed_when: true
+
+    - name: "=== CREATE SERVICES ==="
+      debug:
+        msg: "Creating Kubernetes Services..."
+
+    - name: Create Application Service
+      copy:
+        content: |
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: {{ app_name }}-service
+            namespace: {{ k8s_namespace }}
+          spec:
+            type: LoadBalancer
+            selector:
+              app: {{ app_name }}
+            ports:
+            - port: 80
+              targetPort: 80
+              protocol: TCP
+              name: http
+        dest: "{{ k8s_manifests_dir }}/app-service.yml"
+
+    - name: Apply Application Service
+      command: kubectl apply -f {{ k8s_manifests_dir }}/app-service.yml
+      changed_when: true
+
+    - name: "=== CREATE INGRESS ==="
+      debug:
+        msg: "Creating Ingress for external access..."
+
+    - name: Create Ingress
+      copy:
+        content: |
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: {{ app_name }}-ingress
+            namespace: {{ k8s_namespace }}
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+          spec:
+            rules:
+            - host: {{ app_name }}.local
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: {{ app_name }}-service
+                      port:
+                        number: 80
+        dest: "{{ k8s_manifests_dir }}/ingress.yml"
+
+    - name: Apply Ingress
+      command: kubectl apply -f {{ k8s_manifests_dir }}/ingress.yml
+      changed_when: true
+
+    - name: "=== WAIT FOR DEPLOYMENTS ==="
+      debug:
+        msg: "Waiting for deployments to be ready..."
+
+    - name: Wait for MySQL to be ready
+      command: kubectl wait --for=condition=available --timeout=300s deployment/mysql -n {{ k8s_namespace }}
+      changed_when: false
+
+    - name: Wait for Application to be ready
+      command: kubectl wait --for=condition=available --timeout=300s deployment/{{ app_name }} -n {{ k8s_namespace }}
+      changed_when: false
+
+    - name: "=== VERIFY DEPLOYMENT ==="
+      debug:
+        msg: "Verifying Kubernetes deployment..."
+
+    - name: Get all pods
+      command: kubectl get pods -n {{ k8s_namespace }}
+      register: k8s_pods
+      changed_when: false
+
+    - name: Display pods
+      debug:
+        msg: |
+          Kubernetes Pods:
+          {{ k8s_pods.stdout_lines | join('\n') }}
+
+    - name: Get all services
+      command: kubectl get services -n {{ k8s_namespace }}
+      register: k8s_services
+      changed_when: false
+
+    - name: Display services
+      debug:
+        msg: |
+          Kubernetes Services:
+          {{ k8s_services.stdout_lines | join('\n') }}
+
+    - name: Get deployment status
+      command: kubectl get deployments -n {{ k8s_namespace }}
+      register: k8s_deployments
+      changed_when: false
+
+    - name: Display deployments
+      debug:
+        msg: |
+          Kubernetes Deployments:
+          {{ k8s_deployments.stdout_lines | join('\n') }}
+
+    - name: "=== KUBERNETES DEPLOYMENT SUMMARY ==="
+      debug:
+        msg: |
+          
+          Deployments:
+          - MySQL: 1 replica
+          - Application: 3 replicas
+          
+          Access:
+          - Service: {{ app_name }}-service
+          - Ingress: http://{{ app_name }}.local
+          
+          Commands to check:
+          kubectl get all -n {{ k8s_namespace }}
+          kubectl logs -n {{ k8s_namespace }} -l app={{ app_name }}
+          kubectl describe deployment {{ app_name }} -n {{ k8s_namespace }}
+          ========================================

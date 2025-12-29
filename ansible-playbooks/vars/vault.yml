@@ -1,0 +1,10 @@
+# vars/vault.yml - Encrypted sensitive variables
+# Use: ansible-vault encrypt vars/vault.yml
+# Edit: ansible-vault edit vars/vault.yml
+---
+vault_db_password: "password123"
+vault_app_key: "base64:GENERATE_THIS_WITH_php_artisan_key:generate"
+
+# Add other sensitive variables here
+# vault_api_keys: ""
+# vault_secret_tokens: ""
