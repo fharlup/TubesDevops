@@ -1,0 +1,75 @@
+---
+# roles/application/tasks/main.yml
+- name: Clone/Update application repository
+  git:
+    repo: "{{ git_repo }}"
+    dest: "{{ app_root }}"
+    version: "{{ git_branch }}"
+    force: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Copy environment file
+  template:
+    src: env.j2
+    dest: "{{ app_root }}/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ app_root }}/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Stop existing containers
+  command: docker-compose down
+  args:
+    chdir: "{{ app_root }}"
+  ignore_errors: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Build Docker image
+  command: docker-compose build
+  args:
+    chdir: "{{ app_root }}"
+  become_user: "{{ ansible_user }}"
+
+- name: Start application containers
+  command: docker-compose up -d
+  args:
+    chdir: "{{ app_root }}"
+  become_user: "{{ ansible_user }}"
+
+- name: Wait for application to be ready
+  wait_for:
+    port: "{{ app_port }}"
+    delay: 10
+    timeout: 120
+
+- name: Run database migrations
+  command: docker-compose exec -T app php artisan migrate --force
+  args:
+    chdir: "{{ app_root }}"
+  become_user: "{{ ansible_user }}"
+  when: run_migrations | default(false)
+
+- name: Seed database
+  command: docker-compose exec -T app php artisan db:seed --force
+  args:
+    chdir: "{{ app_root }}"
+  become_user: "{{ ansible_user }}"
+  when: run_seeders | default(false)
+
+- name: Clear application cache
+  command: "{{ item }}"
+  args:
+    chdir: "{{ app_root }}"
+  loop:
+    - docker-compose exec -T app php artisan config:cache
+    - docker-compose exec -T app php artisan route:cache
+    - docker-compose exec -T app php artisan view:cache
+  become_user: "{{ ansible_user }}"
+  ignore_errors: yes

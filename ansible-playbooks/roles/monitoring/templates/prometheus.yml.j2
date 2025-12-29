@@ -1,0 +1,64 @@
+# prometheus.yml.j2 - Prometheus Configuration arga
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'healthcare-app-monitor'
+    environment: '{{ app_env }}'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Node Exporter - System metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          instance: '{{ ansible_hostname }}'
+
+  # cAdvisor - Container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'cadvisor'
+
+  # MySQL Exporter
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+        labels:
+          service: 'mysql'
+
+  # Nginx metrics (if nginx-prometheus-exporter is deployed)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+        labels:
+          service: 'nginx'
+
+  # Application metrics (if Laravel exports metrics)
+  - job_name: 'laravel-app'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['{{ ansible_host }}:{{ app_port }}']
+        labels:
+          service: 'laravel-application'
+          env: '{{ app_env }}'

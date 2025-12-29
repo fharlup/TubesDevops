@@ -1,0 +1,90 @@
+---
+# main.yml - Main orchestration playbook
+# This coordinates all team members' tasks for complete deployment
+- name: Healthcare Application - Complete Deployment Pipeline
+  hosts: all
+  become: yes
+  vars_files:
+    - ../vars/main.yml
+    - ../vars/vault.yml
+
+  pre_tasks:
+    - name: Display deployment information
+      debug:
+        msg: |
+          ========================================
+          Healthcare Application Deployment
+          ========================================
+          Environment: {{ app_env }}
+          Target Host: {{ ansible_host }}
+          Application: {{ app_name }}
+          ========================================
+
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+  roles:
+    # 1. Common setup - Arga
+    - role: ../roles/common
+      tags: ['common', 'setup']
+
+    # 2. Docker installation - Arga
+    - role: ../roles/docker
+      tags: ['docker', 'setup']
+
+    # 3. Application deployment - Arga
+    - role: ../roles/application
+      tags: ['application', 'deploy']
+
+    # # 4. Kubernetes deployment - Arga
+    # - role: ../roles/kubernetes
+    #   tags: ['kubernetes', 'k8s']
+    #   when: deploy_to_kubernetes | default(false)
+
+    # 5. Monitoring stack - Arga
+    - role: ../roles/monitoring
+      tags: ['monitoring', 'prometheus', 'grafana']
+
+  post_tasks:
+    - name: Verify deployment
+      uri:
+        url: "http://{{ ansible_host }}:{{ app_port }}"
+        status_code: 200
+        timeout: 30
+      register: health_check
+      retries: 5
+      delay: 10
+      until: health_check.status == 200
+      ignore_errors: yes
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ========================================
+          Deployment Complete!
+          ========================================
+          Application URL: http://{{ ansible_host }}:{{ app_port }}
+          Prometheus: http://{{ ansible_host }}:{{ prometheus_port }}
+          Grafana: http://{{ ansible_host }}:{{ grafana_port }}
+          phpMyAdmin: http://{{ ansible_host }}:8081
+          ========================================
+          Next Steps:
+          1. Access Grafana and configure dashboards
+          2. Check Prometheus targets
+          3. Verify application functionality
+          ========================================
+
+  handlers:
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
+
+    - name: restart application
+      command: docker-compose restart
+      args:
+        chdir: "{{ app_root }}"
+      become_user: "{{ ansible_user }}"

@@ -1,0 +1,50 @@
+# vars/main.yml - Main variables file
+---
+# Application Configuration
+app_name: healthcare-app
+app_env: production
+app_port: 8080
+app_debug: false
+app_url: "http://{{ ansible_host }}"
+
+# Application paths
+app_root: /opt/{{ app_name }}
+docker_compose_file: "{{ app_root }}/docker-compose.yml"
+
+# Docker settings 
+docker_version: "24.0"
+docker_compose_version: "2.20.0"
+
+# Database settings
+db_host: db
+db_port: 3306
+db_name: rumah_sakit
+db_user: adminrs
+db_password: "{{ vault_db_password }}"
+
+# Application settings
+app_key: "{{ vault_app_key }}"
+
+# Git repository (Update with your actual repository)
+git_repo: "https://github.com/fharlup/TubesDevops.git"
+git_branch: main
+
+# Monitoring Configuration 
+prometheus_port: 9090
+grafana_port: 3000
+
+# Deployment flags
+run_composer: true
+generate_key: true
+run_migrations: true
+run_seeders: false
+
+# Kubernetes Configuration 
+deploy_to_kubernetes: false
+k8s_namespace: healthcare-app
+
+# System Configuration
+configure_firewall: true
+backup_retention_days: 7
+
+#all arga

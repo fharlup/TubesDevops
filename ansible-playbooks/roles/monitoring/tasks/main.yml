@@ -1,0 +1,251 @@
+---
+# roles/monitoring/tasks/main.yml - arga malas nunggu yg lain
+- name: "=== MONITORING STACK SETUP ==="
+  debug:
+    msg: "Setting up Prometheus and Grafana"
+
+- name: Create monitoring directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "{{ app_root }}/monitoring"
+    - "{{ app_root }}/monitoring/prometheus"
+    - "{{ app_root }}/monitoring/grafana"
+    - "{{ app_root }}/monitoring/grafana/provisioning"
+    - "{{ app_root }}/monitoring/grafana/provisioning/datasources"
+    - "{{ app_root }}/monitoring/grafana/provisioning/dashboards"
+
+- name: "=== PROMETHEUS SETUP (Mangkus's Task) ==="
+  debug:
+    msg: "Configuring Prometheus..."
+
+- name: Copy Prometheus configuration
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ app_root }}/monitoring/prometheus/prometheus.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Create Prometheus alerts configuration
+  copy:
+    content: |
+      groups:
+      - name: healthcare_app_alerts
+        interval: 30s
+        rules:
+        - alert: InstanceDown
+          expr: up == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Instance {{ $labels.instance }} down"
+            description: "{{ $labels.instance }} has been down for more than 2 minutes."
+        
+        - alert: HighMemoryUsage
+          expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 20
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage on {{ $labels.instance }}"
+            description: "Memory usage is above 80%"
+        
+        - alert: HighCPUUsage
+          expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage on {{ $labels.instance }}"
+            description: "CPU usage is above 80%"
+        
+        - alert: DiskSpaceLow
+          expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 20
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Low disk space on {{ $labels.instance }}"
+            description: "Disk space is below 20%"
+        
+        - alert: ContainerDown
+          expr: absent(container_last_seen{name=~"laravel|mysql|nginx"})
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Container {{ $labels.name }} is down"
+            description: "Critical container has been down for 2 minutes"
+    dest: "{{ app_root }}/monitoring/prometheus/alerts.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: "=== GRAFANA SETUP (Isal's Task) ==="
+  debug:
+    msg: "Configuring Grafana..."
+
+- name: Copy Grafana datasource configuration
+  template:
+    src: grafana-datasource.yml.j2
+    dest: "{{ app_root }}/monitoring/grafana/provisioning/datasources/datasource.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Copy Grafana dashboard provisioning
+  copy:
+    content: |
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+    dest: "{{ app_root }}/monitoring/grafana/provisioning/dashboards/dashboard.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Create default Grafana dashboard
+  copy:
+    content: |
+      {
+        "dashboard": {
+          "title": "Healthcare Application Dashboard",
+          "panels": [
+            {
+              "id": 1,
+              "title": "System CPU Usage",
+              "type": "graph",
+              "targets": [
+                {
+                  "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                  "legendFormat": "CPU Usage %"
+                }
+              ]
+            },
+            {
+              "id": 2,
+              "title": "Memory Usage",
+              "type": "graph",
+              "targets": [
+                {
+                  "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+                  "legendFormat": "Memory Usage %"
+                }
+              ]
+            },
+            {
+              "id": 3,
+              "title": "Disk Usage",
+              "type": "graph",
+              "targets": [
+                {
+                  "expr": "(node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes * 100",
+                  "legendFormat": "Disk Usage %"
+                }
+              ]
+            },
+            {
+              "id": 4,
+              "title": "Container Status",
+              "type": "stat",
+              "targets": [
+                {
+                  "expr": "count(container_last_seen{name=~\"laravel|mysql|nginx\"})",
+                  "legendFormat": "Running Containers"
+                }
+              ]
+            }
+          ],
+          "refresh": "30s",
+          "time": {
+            "from": "now-1h",
+            "to": "now"
+          }
+        }
+      }
+    dest: "{{ app_root }}/monitoring/grafana/provisioning/dashboards/healthcare-dashboard.json"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Copy monitoring docker-compose
+  template:
+    src: monitoring-compose.yml.j2
+    dest: "{{ app_root }}/monitoring/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Start monitoring stack
+  command: docker-compose up -d
+  args:
+    chdir: "{{ app_root }}/monitoring"
+  become_user: "{{ ansible_user }}"
+
+- name: Wait for Prometheus to be ready
+  wait_for:
+    port: "{{ prometheus_port }}"
+    delay: 5
+    timeout: 60
+
+- name: Wait for Grafana to be ready
+  wait_for:
+    port: "{{ grafana_port }}"
+    delay: 5
+    timeout: 60
+
+- name: Verify Prometheus is responding
+  uri:
+    url: "http://localhost:{{ prometheus_port }}/-/healthy"
+    status_code: 200
+  register: prometheus_health
+  retries: 5
+  delay: 10
+  until: prometheus_health.status == 200
+
+- name: Verify Grafana is responding
+  uri:
+    url: "http://localhost:{{ grafana_port }}/api/health"
+    status_code: 200
+  register: grafana_health
+  retries: 5
+  delay: 10
+  until: grafana_health.status == 200
+
+- name: Display monitoring information
+  debug:
+    msg: |
+      ========================================
+      Monitoring Stack Deployed!
+      ========================================
+      Prometheus (Mangkus):
+      - URL: http://{{ ansible_host }}:{{ prometheus_port }}
+      - Metrics: http://{{ ansible_host }}:{{ prometheus_port }}/metrics
+      - Targets: http://{{ ansible_host }}:{{ prometheus_port }}/targets
+      
+      Grafana (Isal):
+      - URL: http://{{ ansible_host }}:{{ grafana_port }}
+      - Username: admin
+      - Password: admin (change on first login)
+      - Datasource: Prometheus (auto-configured)
+      
+      Node Exporter:
+      - URL: http://{{ ansible_host }}:9100/metrics
+      
+      cAdvisor:
+      - URL: http://{{ ansible_host }}:8080
+      ========================================
