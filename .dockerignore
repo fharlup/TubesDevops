@@ -10,12 +10,6 @@ yarn-error.log
 # Composer
 vendor
 
-# Laravel
-storage/logs
-storage/framework/cache
-storage/framework/sessions
-storage/framework/views
-bootstrap/cache
 
 # Tests & docs
 tests

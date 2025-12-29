@@ -45,6 +45,12 @@ RUN mkdir -p /var/www/storage /var/www/bootstrap/cache && \
 # Jalankan instalasi dependensi Laravel menggunakan Composer
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
+RUN npm install
+RUN npm run build
+
 # Expose port 9000 untuk PHP-FPM
 EXPOSE 9000
 
