@@ -11,8 +11,6 @@ yarn-error.log
 vendor
 
 # Laravel
-.env
-.env.*
 storage/logs
 storage/framework/cache
 storage/framework/sessions
