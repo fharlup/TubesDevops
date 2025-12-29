@@ -1,6 +1,6 @@
 ---
-# roles/common/tasks/main.yml - Gabriel's Control Server Setup
-- name: "=== COMMON SETUP (Gabriel's Control Server) ==="
+# roles/common/tasks/main.yml - buatan arga
+- name: "=== COMMON SETUP (Arga's Control Server) ==="
   debug:
     msg: "Setting up base system requirements..."
 
@@ -31,11 +31,12 @@
   when: ansible_os_family == "Debian"
 
 - name: Install Python Docker SDK
-  pip:
+  apt:
     name:
-      - docker
-      - docker-compose
+      - python3-docker
+      - python3-requests
     state: present
+  become: yes
 
 - name: Create application user
   user:

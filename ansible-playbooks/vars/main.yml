@@ -1,17 +1,17 @@
 # vars/main.yml - Main variables file
 ---
 # Application Configuration
-app_name: healthcare-app
-app_env: production
-app_port: 8080
-app_debug: false
+app_name: tubes_devops
+app_env: local
+app_port: 80
+app_debug: true
 app_url: "http://{{ ansible_host }}"
 
 # Application paths
 app_root: /opt/{{ app_name }}
 docker_compose_file: "{{ app_root }}/docker-compose.yml"
 
-# Docker settings 
+# Docker settings
 docker_version: "24.0"
 docker_compose_version: "2.20.0"
 
@@ -25,11 +25,11 @@ db_password: "{{ vault_db_password }}"
 # Application settings
 app_key: "{{ vault_app_key }}"
 
-# Git repository (Update with your actual repository)
+# Git repository
 git_repo: "https://github.com/fharlup/TubesDevops.git"
 git_branch: main
 
-# Monitoring Configuration 
+# Monitoring Configuration
 prometheus_port: 9090
 grafana_port: 3000
 
@@ -39,9 +39,9 @@ generate_key: true
 run_migrations: true
 run_seeders: false
 
-# Kubernetes Configuration 
+# Kubernetes Configuration
 deploy_to_kubernetes: false
-k8s_namespace: healthcare-app
+k8s_namespace: Tubes_Devops
 
 # System Configuration
 configure_firewall: true

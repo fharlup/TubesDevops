@@ -2,8 +2,8 @@
 # Use: ansible-vault encrypt vars/vault.yml
 # Edit: ansible-vault edit vars/vault.yml
 ---
-vault_db_password: "password123"
-vault_app_key: "base64:GENERATE_THIS_WITH_php_artisan_key:generate"
+vault_db_password: password123
+vault_app_key: "base64:YourLaravelKeyHere"  # Generate with: php artisan key:generate --show
 
 # Add other sensitive variables here
 # vault_api_keys: ""

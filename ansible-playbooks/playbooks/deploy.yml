@@ -49,7 +49,7 @@
         chdir: "{{ app_root }}"
       become_user: "{{ ansible_user }}"
       register: docker_build
-      tags: ['docker-build', 'fajar']
+      tags: ['docker-build']
 
     - name: Display build output
       debug:
@@ -59,7 +59,7 @@
     - name: Tag image with latest
       command: docker tag {{ app_name }}:{{ git_branch }} {{ app_name }}:latest
       become_user: "{{ ansible_user }}"
-      tags: ['docker-build', 'fajar']
+      tags: ['docker-build']
 
     - name: "=== PHASE 3: Configuration Setup ==="
       debug:
@@ -88,7 +88,7 @@
         msg: "Deploying containers with Docker Compose..."
 
     - name: Stop existing containers
-      command: docker-compose down
+      command: docker compose down
       args:
         chdir: "{{ app_root }}"
       ignore_errors: yes
@@ -96,7 +96,7 @@
       tags: ['docker-compose']
 
     - name: Pull required base images
-      command: docker-compose pull
+      command: docker compose pull
       args:
         chdir: "{{ app_root }}"
       become_user: "{{ ansible_user }}"
@@ -104,7 +104,7 @@
       tags: ['docker-compose']
 
     - name: Start all containers with docker-compose
-      command: docker-compose up -d --build
+      command: docker compose up -d --build
       args:
         chdir: "{{ app_root }}"
       become_user: "{{ ansible_user }}"
@@ -112,7 +112,7 @@
       tags: ['docker-compose']
 
     - name: Display docker-compose status
-      command: docker-compose ps
+      command: docker compose ps
       args:
         chdir: "{{ app_root }}"
       become_user: "{{ ansible_user }}"
@@ -143,7 +143,7 @@
       tags: ['init']
 
     - name: Install Composer dependencies
-      command: docker-compose exec -T laravel composer install --no-interaction --optimize-autoloader
+      command: docker compose exec -T laravel composer install --no-interaction --optimize-autoloader
       args:
         chdir: "{{ app_root }}"
       become_user: "{{ ansible_user }}"
@@ -151,7 +151,7 @@
       tags: ['init']
 
     - name: Generate application key
-      command: docker-compose exec -T laravel php artisan key:generate --force
+      command: docker compose exec -T laravel php artisan key:generate --force
       args:
         chdir: "{{ app_root }}"
       become_user: "{{ ansible_user }}"
@@ -159,7 +159,7 @@
       tags: ['init']
 
     - name: Run database migrations
-      command: docker-compose exec -T laravel php artisan migrate --force
+      command: docker compose exec -T laravel php artisan migrate --force
       args:
         chdir: "{{ app_root }}"
       become_user: "{{ ansible_user }}"
@@ -167,7 +167,7 @@
       tags: ['init', 'database']
 
     - name: Seed database
-      command: docker-compose exec -T laravel php artisan db:seed --force
+      command: docker compose exec -T laravel php artisan db:seed --force
       args:
         chdir: "{{ app_root }}"
       become_user: "{{ ansible_user }}"
@@ -179,9 +179,9 @@
       args:
         chdir: "{{ app_root }}"
       loop:
-        - docker-compose exec -T laravel php artisan config:cache
-        - docker-compose exec -T laravel php artisan route:cache
-        - docker-compose exec -T laravel php artisan view:cache
+        - docker compose exec -T laravel php artisan config:cache
+        - docker compose exec -T laravel php artisan route:cache
+        - docker compose exec -T laravel php artisan view:cache
       become_user: "{{ ansible_user }}"
       ignore_errors: yes
       tags: ['init', 'cache']

@@ -1,6 +1,6 @@
 # inventory/staging - Staging environment inventory
 [all:vars]
-ansible_user=ubuntu
+ansible_user=arga
 ansible_python_interpreter=/usr/bin/python3
 
 [webservers]
@@ -14,3 +14,4 @@ staging-server
 
 [k8s_master]
 k8s-staging-master ansible_host=YOUR_K8S_STAGING_IP
+~/.ssh/id_rsa

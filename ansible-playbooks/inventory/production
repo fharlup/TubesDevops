@@ -1,10 +1,10 @@
 # inventory/production - Production environment inventory
 [all:vars]
-ansible_user=ubuntu
+ansible_user=arga
 ansible_python_interpreter=/usr/bin/python3
 
 [webservers]
-production-server ansible_host=YOUR_PRODUCTION_IP
+production-server ansible_host=192.168.100.137
 
 [database]
 production-server

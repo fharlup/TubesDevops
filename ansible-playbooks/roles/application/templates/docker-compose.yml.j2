@@ -1,14 +1,9 @@
-# docker-compose.yml.j2 - Template
-version: '3.8'
-
 services:
-  # Laravel Application (Fajar's Docker Image)
   laravel:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: {{ app_name }}_laravel
-    image: {{ app_name }}:latest
+    container_name: {{ app_name }}
     volumes:
       - .:/var/www
       - /var/www/vendor
@@ -28,13 +23,11 @@ services:
     depends_on:
       - db
     networks:
-      - {{ app_name }}_net
-    restart: unless-stopped
+      - laravel_net
 
-  # Nginx Web Server
   web:
     image: nginx:alpine
-    container_name: {{ app_name }}_nginx
+    container_name: laravel_nginx
     ports:
       - "{{ app_port }}:80"
     volumes:
@@ -43,13 +36,11 @@ services:
     depends_on:
       - laravel
     networks:
-      - {{ app_name }}_net
-    restart: unless-stopped
-
-  # MySQL Database
+      - laravel_net
+    
   db:
     image: mysql:8.0
-    container_name: {{ app_name }}_mysql
+    container_name: laravel_mysql
     environment:
       MYSQL_DATABASE: {{ db_name }}
       MYSQL_ROOT_PASSWORD: {{ db_password }}
@@ -57,17 +48,12 @@ services:
       MYSQL_PASSWORD: {{ db_password }}
     volumes:
       - mysql_data:/var/lib/mysql
-    ports:
-      - "{{ db_port }}:3306"
     networks:
-      - {{ app_name }}_net
-    restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password
+      - laravel_net
 
-  # phpMyAdmin
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: {{ app_name }}_phpmyadmin
+    container_name: laravel_phpmyadmin
     ports:
       - "8081:80"
     environment:
@@ -77,13 +63,10 @@ services:
     depends_on:
       - db
     networks:
-      - {{ app_name }}_net
-    restart: unless-stopped
+      - laravel_net
 
 networks:
-  {{ app_name }}_net:
-    driver: bridge
+  laravel_net:
 
 volumes:
   mysql_data:
-    driver: local
