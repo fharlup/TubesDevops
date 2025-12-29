@@ -26,12 +26,9 @@ COPY . /var/www
 RUN chown -R www-data:www-data /var/www
 
 # Copy script entrypoint dan buat dia bisa dijalankan
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN composer install --no-dev --optimize-autoloader
+RUN npm install && npm run build
 
 EXPOSE 9000
-
-# Tentukan script entrypoint sebagai titik awal
-ENTRYPOINT ["docker-entrypoint.sh"]
 
 CMD ["php-fpm"]
