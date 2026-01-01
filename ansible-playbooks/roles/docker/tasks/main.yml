@@ -1,6 +1,10 @@
 ---
-# roles/docker/tasks/main.yml
-- name: Remove old Docker versions
+# roles/docker/tasks/main.yml - Multi-OS Docker Installation
+
+# ============================================
+# DEBIAN/UBUNTU INSTALLATION
+# ============================================
+- name: Remove old Docker versions (Debian/Ubuntu)
   apt:
     name:
       - docker
@@ -9,18 +13,21 @@
       - containerd
       - runc
     state: absent
+  when: ansible_os_family == "Debian"
 
-- name: Add Docker GPG key
+- name: Add Docker GPG key (Debian/Ubuntu)
   apt_key:
     url: https://download.docker.com/linux/ubuntu/gpg
     state: present
+  when: ansible_os_family == "Debian"
 
-- name: Add Docker repository
+- name: Add Docker repository (Debian/Ubuntu)
   apt_repository:
     repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
     state: present
+  when: ansible_os_family == "Debian"
 
-- name: Install Docker
+- name: Install Docker (Debian/Ubuntu)
   apt:
     name:
       - docker-ce
@@ -30,7 +37,57 @@
       - docker-compose-plugin
     state: present
     update_cache: yes
+  when: ansible_os_family == "Debian"
 
+# ============================================
+# REDHAT/ALMALINUX INSTALLATION
+# ============================================
+- name: Remove old Docker versions (RedHat/AlmaLinux)
+  yum:
+    name:
+      - docker
+      - docker-client
+      - docker-client-latest
+      - docker-common
+      - docker-latest
+      - docker-latest-logrotate
+      - docker-logrotate
+      - docker-engine
+      - podman
+      - runc
+    state: absent
+  when: ansible_os_family == "RedHat"
+
+- name: Install yum-utils (RedHat/AlmaLinux)
+  yum:
+    name: yum-utils
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Add Docker repository (RedHat/AlmaLinux)
+  yum_repository:
+    name: docker-ce-stable
+    description: Docker CE Stable - $basearch
+    baseurl: https://download.docker.com/linux/centos/$releasever/$basearch/stable
+    enabled: yes
+    gpgcheck: yes
+    gpgkey: https://download.docker.com/linux/centos/gpg
+  when: ansible_os_family == "RedHat"
+
+- name: Install Docker (RedHat/AlmaLinux)
+  yum:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+  when: ansible_os_family == "RedHat"
+
+# ============================================
+# COMMON CONFIGURATION (All OS)
+# ============================================
 - name: Start and enable Docker service
   systemd:
     name: docker
@@ -49,11 +106,38 @@
     dest: /usr/local/bin/docker-compose
     mode: '0755'
 
+- name: Create docker-compose symlink (for 'docker compose' command)
+  file:
+    src: /usr/local/bin/docker-compose
+    dest: /usr/libexec/docker/cli-plugins/docker-compose
+    state: link
+  ignore_errors: yes
+
 - name: Verify Docker installation
   command: docker --version
   register: docker_version_output
   changed_when: false
 
+- name: Verify Docker Compose installation
+  command: docker compose version
+  register: docker_compose_output
+  changed_when: false
+  ignore_errors: yes
+
 - name: Print Docker version
   debug:
-    msg: "{{ docker_version_output.stdout }}"
+    msg: |
+      Docker Installation Complete!
+      - Docker: {{ docker_version_output.stdout }}
+      - Docker Compose: {{ docker_compose_output.stdout | default('Installed') }}
+
+- name: Test Docker with hello-world
+  command: docker run --rm hello-world
+  register: docker_test
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display Docker test result
+  debug:
+    msg: "Docker is working correctly!"
+  when: docker_test.rc == 0

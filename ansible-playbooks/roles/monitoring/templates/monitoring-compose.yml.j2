@@ -2,7 +2,7 @@
 version: '3.8'
 
 services:
-  # Prometheus (Mangkus's Task)
+  # Prometheus arga
   prometheus:
     image: prom/prometheus:latest
     container_name: {{ app_name }}_prometheus
@@ -22,7 +22,7 @@ services:
       - monitoring
     restart: unless-stopped
 
-  # Grafana (Isal's Task)
+  # Grafana arga
   grafana:
     image: grafana/grafana:latest
     container_name: {{ app_name }}_grafana

@@ -19,7 +19,7 @@
     - "{{ app_root }}/monitoring/grafana/provisioning/datasources"
     - "{{ app_root }}/monitoring/grafana/provisioning/dashboards"
 
-- name: "=== PROMETHEUS SETUP (Mangkus's Task) ==="
+- name: "=== PROMETHEUS SETUP arga ==="
   debug:
     msg: "Configuring Prometheus..."
 
@@ -87,7 +87,7 @@
     group: "{{ ansible_user }}"
     mode: '0644'
 
-- name: "=== GRAFANA SETUP (Isal's Task) ==="
+- name: "=== GRAFANA SETUP arga ==="
   debug:
     msg: "Configuring Grafana..."
 
@@ -232,12 +232,12 @@
       ========================================
       Monitoring Stack Deployed!
       ========================================
-      Prometheus (Mangkus):
+      Prometheus arga:
       - URL: http://{{ ansible_host }}:{{ prometheus_port }}
       - Metrics: http://{{ ansible_host }}:{{ prometheus_port }}/metrics
       - Targets: http://{{ ansible_host }}:{{ prometheus_port }}/targets
       
-      Grafana (Isal):
+      Grafana arga:
       - URL: http://{{ ansible_host }}:{{ grafana_port }}
       - Username: admin
       - Password: admin (change on first login)
