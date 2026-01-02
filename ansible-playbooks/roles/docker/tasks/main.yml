@@ -100,18 +100,13 @@
     groups: docker
     append: yes
 
-- name: Install Docker Compose standalone
+- name: Install Docker Compose standalone (if plugin not available)
   get_url:
     url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-linux-x86_64"
     dest: /usr/local/bin/docker-compose
     mode: '0755'
-
-- name: Create docker-compose symlink (for 'docker compose' command)
-  file:
-    src: /usr/local/bin/docker-compose
-    dest: /usr/libexec/docker/cli-plugins/docker-compose
-    state: link
-  ignore_errors: yes
+  when: ansible_os_family == "Debian"
+  # RedHat systems use docker-compose-plugin, no standalone needed
 
 - name: Verify Docker installation
   command: docker --version

@@ -19,16 +19,28 @@ RUN docker-php-ext-install gd
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Salin composer files dulu untuk cache layer
+COPY composer.json composer.lock /var/www/
+
+# Install dependencies (FIXED: include dev deps untuk avoid Pail error)
+RUN composer install --optimize-autoloader --no-interaction
+
 # Salin seluruh kode
 COPY . /var/www
 
-# Berikan izin akses
-RUN chown -R www-data:www-data /var/www
-
-# Copy script entrypoint dan buat dia bisa dijalankan
-RUN composer install --no-dev --optimize-autoloader
+# Install frontend dependencies dan build
 RUN npm install && npm run build
+
+# Berikan izin akses
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 755 /var/www/storage \
+    && chmod -R 755 /var/www/bootstrap/cache
+
+# Copy dan set permissions untuk entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 9000
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
