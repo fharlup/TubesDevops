@@ -1,5 +1,5 @@
 ---
-# roles/monitoring/tasks/main.yml - arga malas nunggu yg lain
+# roles/monitoring/tasks/main.yml
 - name: "=== MONITORING STACK SETUP ==="
   debug:
     msg: "Setting up Prometheus and Grafana"
@@ -19,7 +19,7 @@
     - "{{ app_root }}/monitoring/grafana/provisioning/datasources"
     - "{{ app_root }}/monitoring/grafana/provisioning/dashboards"
 
-- name: "=== PROMETHEUS SETUP arga ==="
+- name: "=== PROMETHEUS SETUP ==="
   debug:
     msg: "Configuring Prometheus..."
 
@@ -33,7 +33,7 @@
 
 - name: Create Prometheus alerts configuration
   copy:
-    content: |
+    content: !unsafe |
       groups:
       - name: healthcare_app_alerts
         interval: 30s
@@ -46,7 +46,7 @@
           annotations:
             summary: "Instance {{ $labels.instance }} down"
             description: "{{ $labels.instance }} has been down for more than 2 minutes."
-        
+
         - alert: HighMemoryUsage
           expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 20
           for: 5m
@@ -55,7 +55,7 @@
           annotations:
             summary: "High memory usage on {{ $labels.instance }}"
             description: "Memory usage is above 80%"
-        
+
         - alert: HighCPUUsage
           expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
           for: 5m
@@ -64,7 +64,7 @@
           annotations:
             summary: "High CPU usage on {{ $labels.instance }}"
             description: "CPU usage is above 80%"
-        
+
         - alert: DiskSpaceLow
           expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 20
           for: 5m
@@ -73,7 +73,7 @@
           annotations:
             summary: "Low disk space on {{ $labels.instance }}"
             description: "Disk space is below 20%"
-        
+
         - alert: ContainerDown
           expr: absent(container_last_seen{name=~"laravel|mysql|nginx"})
           for: 2m
@@ -82,12 +82,57 @@
           annotations:
             summary: "Container {{ $labels.name }} is down"
             description: "Critical container has been down for 2 minutes"
+
+        - alert: HighNetworkIn
+          expr: rate(node_network_receive_bytes_total[5m]) > 100000000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High network inbound traffic on {{ $labels.instance }}"
+            description: "Inbound network traffic is above 100MB/s"
+
+        - alert: HighNetworkOut
+          expr: rate(node_network_transmit_bytes_total[5m]) > 100000000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High network outbound traffic on {{ $labels.instance }}"
+            description: "Outbound network traffic is above 100MB/s"
+
+        - alert: MySQLDown
+          expr: up{job="mysql"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "MySQL server is down on {{ $labels.instance }}"
+            description: "MySQL exporter is not responding"
+
+        - alert: NginxDown
+          expr: up{job="nginx"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Nginx server is down on {{ $labels.instance }}"
+            description: "Nginx exporter is not responding"
+
+        - alert: LaravelAppDown
+          expr: up{job="laravel-app"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Laravel app is down on {{ $labels.instance }}"
+            description: "Laravel application metrics not available"
     dest: "{{ app_root }}/monitoring/prometheus/alerts.yml"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: '0644'
 
-- name: "=== GRAFANA SETUP arga ==="
+- name: "=== GRAFANA SETUP ==="
   debug:
     msg: "Configuring Grafana..."
 
@@ -232,12 +277,12 @@
       ========================================
       Monitoring Stack Deployed!
       ========================================
-      Prometheus arga:
+      Prometheus:
       - URL: http://{{ ansible_host }}:{{ prometheus_port }}
       - Metrics: http://{{ ansible_host }}:{{ prometheus_port }}/metrics
       - Targets: http://{{ ansible_host }}:{{ prometheus_port }}/targets
       
-      Grafana arga:
+      Grafana:
       - URL: http://{{ ansible_host }}:{{ grafana_port }}
       - Username: admin
       - Password: admin (change on first login)
